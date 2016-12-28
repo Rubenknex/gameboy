@@ -6,11 +6,11 @@
 #include "def.h"
 #include "gameboy.h"
 
-#define SCREEN_W 160
-#define SCREEN_H 144
+const int SCREEN_W = PIXELS_W * 4;
+const int SCREEN_H = PIXELS_H * 4;
 
-#define FPS 60.0
-#define MS_PER_FRAME 1000.0 / FPS
+const int FPS = 59.7;
+const float MS_PER_FRAME = 1000.0 / FPS;
 
 int main(int argc, char* args[])
 {
@@ -19,19 +19,25 @@ int main(int argc, char* args[])
     //GameBoy gb("C:/Users/Ruben/Documents/ROMs/GameBoy/cpu_instrs/cpu_instrs.gb");
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cout << "SDL could not be initialized! SDL_Error: " << SDL_GetError() << std::endl;
+        std::cout << "Init error: " << SDL_GetError() << std::endl;
         return -1;
     }
 
-    SDL_Window* window = SDL_CreateWindow("GameBoy", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_W * 2, SCREEN_H * 2, SDL_WINDOW_SHOWN);
+    SDL_Window* window = SDL_CreateWindow(
+        "GameBoy",
+        SDL_WINDOWPOS_UNDEFINED,
+        SDL_WINDOWPOS_UNDEFINED,
+        SCREEN_W,
+        SCREEN_H,
+        SDL_WINDOW_SHOWN);
     if (window == NULL) {
-        std::cout << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        std::cout << "Window creation error: " << SDL_GetError() << std::endl;
         return -1;
     }
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (renderer == NULL) {
-        std::cout << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        std::cout << "Renderer creation error: " << SDL_GetError() << std::endl;
         return -1;
     }
 
@@ -61,15 +67,17 @@ int main(int argc, char* args[])
         }
 
         // Create an SDL_Texture from the gameboy screen buffer
-        SDL_Surface* screen = SDL_CreateRGBSurfaceFrom(gb.gpu.get_screen_buffer(),
-                                                       PIXELS_W,
-                                                       PIXELS_H,
-                                                       32,
-                                                       PIXELS_W * 4,
-                                                       0xFF000000,
-                                                       0x00FF0000,
-                                                       0x0000FF00,
-                                                       0x000000FF);
+        SDL_Surface* screen = SDL_CreateRGBSurfaceFrom(
+            gb.gpu.get_screen_buffer(),
+            PIXELS_W,
+            PIXELS_H,
+            32,
+            PIXELS_W * 4,
+            0xFF000000,
+            0x00FF0000,
+            0x0000FF00,
+            0x000000FF);
+
         SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, screen);
         SDL_FreeSurface(screen);
 

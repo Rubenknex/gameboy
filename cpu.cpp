@@ -101,8 +101,7 @@ void Register16::set(u16 value) {
     *lower = value & 0x00FF;
 }
 
-CPU::CPU(GameBoy* gb) : gb(gb)
-{
+CPU::CPU(GameBoy* gb) : gb(gb) {
     counter = 0;
     cycles = 0;
     elapsed_cycles = 0;
@@ -126,8 +125,7 @@ CPU::CPU(GameBoy* gb) : gb(gb)
     SP = 0x0;
 }
 
-CPU::~CPU()
-{
+CPU::~CPU() {
 
 }
 
@@ -172,6 +170,18 @@ void CPU::set_carry(bool value) {
 
 int CPU::get_elapsed_cycles() {
     return elapsed_cycles;
+}
+
+void CPU::push_to_stack(u16 value) {
+    SP -= 2;
+    gb->mmu.write_word(SP, value);
+}
+
+u16 CPU::pop_from_stack() {
+    u16 value = gb->mmu.read_word(SP);
+    SP += 2;
+
+    return value;
 }
 
 void CPU::ALU(u8 y, u8 z, bool immediate) {
@@ -236,7 +246,6 @@ void CPU::ALU(u8 y, u8 z, bool immediate) {
         break;
     case 7: // CP
         result = A - value;
-        //std::cout << A << " " << result << " " << value << std::endl;
         set_zero(result == 0);
         set_subtract(true); // Changed to true
         set_half_carry((result & 0xF) > (A & 0xF));
@@ -539,31 +548,23 @@ void CPU::execute_opcode() {
         case 7:
             switch (y) {
             case 0: // RLCA
-                set_zero(false);
-                set_subtract(false);
-                set_half_carry(false);
+                set_zero(false); set_subtract(false); set_half_carry(false);
                 set_carry(A >> 7);
                 A = (A << 1) | (A >> 7);
                 break;
             case 1: // RRCA
-                set_zero(false);
-                set_subtract(false);
-                set_half_carry(false);
+                set_zero(false); set_subtract(false); set_half_carry(false);
                 set_carry(A & 0x1);
                 A = (A >> 1) | ((A & 0x1) << 7);
                 break;
             case 2: // RLA
-                set_zero(false);
-                set_subtract(false);
-                set_half_carry(false);
+                set_zero(false); set_subtract(false); set_half_carry(false);
                 result = A << 1 | get_carry();
                 set_carry(A >> 7);
                 A = result & 0xFF;
                 break;
             case 3: // RRA
-                set_zero(false);
-                set_subtract(false);
-                set_half_carry(false);
+                set_zero(false); set_subtract(false); set_half_carry(false);
                 result = A >> 1 | get_carry() << 7;
                 set_carry(A & 0x1);
                 A = result & 0xFF;
@@ -628,9 +629,7 @@ void CPU::execute_opcode() {
             switch (y) {
             case 0: case 1: case 2: case 3: // RET cc[y]
                 if (cc[y]) {
-                    PC = gb->mmu.read_word(SP);
-                    PC -= 1; // TODO corrected
-                    SP += 2;
+                    PC = pop_from_stack() - 1;
                     elapsed_cycles += 12;
                 }
                 break;
@@ -639,11 +638,9 @@ void CPU::execute_opcode() {
                 break;
             case 5: // LD (a16),A
                 gb->mmu.write_byte(gb->mmu.read_word(PC + 1), A);
-                //std::cout << "is this it/" << std::endl;
                 break;
             case 6: // LDH A,(a8)
                 A = gb->mmu.read_byte(0xFF00 + gb->mmu.read_byte(PC + 1));
-                //std::cout << std::hex << (int)gb->mmu.read_byte(PC + 1) << std::endl;
                 break;
             case 7: // LD A,(a16)
                 A = gb->mmu.read_byte(gb->mmu.read_word(PC + 1));
@@ -653,30 +650,19 @@ void CPU::execute_opcode() {
         case 1:
             switch (q) {
             case 0: // POP rp2[p]
-                rp2[p].set(gb->mmu.read_word(SP));
-                SP += 2;
-                //std::cout << "POP " << std::hex << rp2[p].get() << std::endl;
+                rp2[p].set(pop_from_stack());
                 break;
             case 1:
                 switch (p) {
                 case 0: // RET
-                    //std::cout << "RET " << gb->mmu.read_word(SP) << std::endl;
-                    PC = gb->mmu.read_word(SP);
-                    PC -= 1;
-                    SP += 2;
+                    PC = pop_from_stack() - 1;
                     break;
                 case 1: // RETI
                     interrupt_master_enable = true;
-                    PC = gb->mmu.read_word(SP);
-                    //std::cout << "Returning to " << std::hex << PC << std::endl;
-                    PC -= 1;
-                    SP += 2;
+                    PC = pop_from_stack() - 1;
                     break;
                 case 2: // JP (HL)
-                    //PC = gb->mmu.read_word(HL.get());
-                    PC = HL.get();
-                    //std::cout << std::hex << HL.get() << std::endl;
-                    PC -= 1; // correct
+                    PC = HL.get() - 1;
                     break;
                 case 3: // LD SP,HL
                     SP = HL.get();
@@ -688,23 +674,20 @@ void CPU::execute_opcode() {
             switch (y) {
             case 0: case 1: case 2: case 3:
                 if (cc[y]) {
-                    PC = gb->mmu.read_word(PC + 1);
-                    PC -= 3;
+                    PC = gb->mmu.read_word(PC + 1) - 3;
                     elapsed_cycles += 4;
                 }
                 break;
-            case 4:
-                //gb->mmu.write_byte(0xFF00 + get_carry(), A);
+            case 4: // LD (FF00+C), A
                 gb->mmu.write_byte(0xFF00 + C, A);
                 break;
-            case 5:
+            case 5: // LD (a16), A
                 gb->mmu.write_byte(gb->mmu.read_word(PC + 1), A);
                 break;
-            case 6:
-                //A = gb->mmu.read_byte(0xFF00 + get_carry());
+            case 6: // LD A, (FF00+C)
                 A = gb->mmu.read_byte(0xFF00 + C);
                 break;
-            case 7:
+            case 7: // LD A, (a16)
                 A = gb->mmu.read_byte(gb->mmu.read_word(PC + 1));
                 break;
             }
@@ -712,9 +695,7 @@ void CPU::execute_opcode() {
         case 3:
             switch (y) {
             case 0: // JP nn
-                PC = gb->mmu.read_word(PC + 1);
-                //std::cout << std::hex << PC << std::endl;
-                PC -= 3;
+                PC = gb->mmu.read_word(PC + 1) - 3;
                 break;
             case 1: // CB PREFIX
                 cb_opcode = gb->mmu.read_byte(PC + 1);
@@ -732,37 +713,28 @@ void CPU::execute_opcode() {
                 break;
             case 6: // DI
                 interrupt_master_enable = false;
-                //std::cout << "IME = False" << std::endl;
                 break;
             case 7: // EI
                 interrupt_master_enable = true;
-                //std::cout << "IME = True" << std::endl;
                 break;
             }
             break;
         case 4: // CALL cc[y],nn
             if (y < 4 && cc[y]) {
-                SP -= 2;
-                gb->mmu.write_word(SP, PC + 3);
-                //std::cout << "CALL " << (PC + 3) << std::endl;
-                PC = gb->mmu.read_word(PC + 1);
-                PC -= 3; // dont increment past the call location
+                push_to_stack(PC + 3);
+                PC = gb->mmu.read_word(PC + 1) - 3;
                 elapsed_cycles += 12;
             }
             break;
         case 5:
             switch (q) {
             case 0: // PUSH rp2[p]
-                SP -= 2;
-                gb->mmu.write_word(SP, rp2[p].get());
-                //std::cout << "PUSH " << std::hex << rp2[p].get() << std::endl;
+                push_to_stack(rp2[p].get());
                 break;
             case 1:
                 if (p == 0) { // CALL nn
-                    SP -= 2;
-                    gb->mmu.write_word(SP, PC + 3);
-                    PC = gb->mmu.read_word(PC + 1);
-                    PC -= 3;
+                    push_to_stack(PC + 3);
+                    PC = gb->mmu.read_word(PC + 1) - 3;
                 }
                 break;
             }
@@ -772,10 +744,8 @@ void CPU::execute_opcode() {
             break;
         case 7: // RST y*8
             //interrupt_master_enable = false;
-            SP -= 2;
-            gb->mmu.write_word(SP, PC + 1);
-            PC = y * 8;
-            PC -= 1;
+            push_to_stack(PC + 1);
+            PC = y * 8 - 1;
             break;
         }
         break;
@@ -792,15 +762,11 @@ void CPU::execute_opcode() {
         u8 fired = int_e & int_f;
 
         if (fired & INTERRUPT_VBLANK) {
-            //std::cout << "handling vblank interrupt" << std::endl;
             gb->mmu.interrupt_flags &= ~INTERRUPT_VBLANK;
-            //std::cout << "IF=" << std::hex << (int)gb->mmu.interrupt_flags << std::endl;
-
             interrupt_master_enable = false;
 
-            SP -= 2;
-            gb->mmu.write_word(SP, PC);
-            //std::cout << "Pushing onto stack: " << std::hex << PC << std::endl;
+            push_to_stack(PC);
+
             PC = 0x0040;
             cycles += 12;
         } else if (fired) {

@@ -39,6 +39,9 @@ public:
 
     int get_elapsed_cycles();
 
+    void push_to_stack(u16 address);
+    u16 pop_from_stack();
+
     void ALU(u8 y, u8 z, bool immediate);
     void CB_prefix(u8 x, u8 y, u8 z);
 

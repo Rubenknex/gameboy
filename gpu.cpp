@@ -41,15 +41,17 @@ void GPU::cycle() {
     switch (mode) {
     case GPUMode::OAM: // Draw sprites
         if (cycles >= T_LINE_OAM) {
-            // Finished drawing sprites, move to drawing tiles
             cycles -= T_LINE_OAM;
+
+            // Finished drawing sprites, move to drawing tiles
             mode = GPUMode::VRAM;
         }
         break;
     case GPUMode::VRAM: // Draw background tiles
         if (cycles >= T_LINE_VRAM) {
-            // Finished drawing tiles, move to HBlank
             cycles -= T_LINE_VRAM;
+
+            // Finished drawing tiles, move to HBlank
             mode = GPUMode::HBlank;
 
             if (lcd_enabled)
