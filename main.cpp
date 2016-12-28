@@ -52,11 +52,22 @@ int main(int argc, char* args[])
         current_time = SDL_GetTicks();
 
         while (SDL_PollEvent(&e) != 0) {
-            if (e.type == SDL_QUIT)
+            switch (e.type) {
+            case SDL_QUIT:
                 quit = true;
+                break;
+            }
         }
 
         const Uint8* keys = SDL_GetKeyboardState(NULL);
+        gb.buttons[Button::Up] = keys[SDL_SCANCODE_W];
+        gb.buttons[Button::Down] = keys[SDL_SCANCODE_S];
+        gb.buttons[Button::Left] = keys[SDL_SCANCODE_A];
+        gb.buttons[Button::Right] = keys[SDL_SCANCODE_D];
+        gb.buttons[Button::Start] = keys[SDL_SCANCODE_RETURN];
+        gb.buttons[Button::Select] = keys[SDL_SCANCODE_SPACE];
+        gb.buttons[Button::A] = keys[SDL_SCANCODE_O];
+        gb.buttons[Button::B] = keys[SDL_SCANCODE_P];
 
         redraw = false;
 

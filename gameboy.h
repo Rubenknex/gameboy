@@ -8,6 +8,10 @@
 #include "gpu.h"
 #include "mmu.h"
 
+namespace Button {
+	enum Type {Up, Down, Left, Right, Start, Select, A, B};
+}
+
 class GameBoy {
 public:
     GameBoy(const std::string& filename);
@@ -16,6 +20,7 @@ public:
     void cycle();
 
 public:
+	bool buttons[8];
     Cartridge cartridge;
     CPU cpu;
     GPU gpu;

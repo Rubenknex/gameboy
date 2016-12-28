@@ -76,16 +76,22 @@ u8 MMU::read_byte(u16 address) {
             return 0;
     } else if (address < 0xFF80)
         switch (address & 0xFF) {
-        case 0x00: // Joypad port
+        case 0x00: { // Joypad port
             // Construct the joypad register byte
-            return 0xC0 |
-                   (select_button    ? 0x20 : 0) |
-                   (select_direction ? 0x10 : 0) |
-                   (down_or_start    ? 0x8 : 0) |
-                   (up_or_select     ? 0x4 : 0) |
-                   (left_or_b        ? 0x2 : 0) |
-                   (right_or_a       ? 0x1 : 0);
-            break;
+            // the selection bits are swapped for some reason
+            if (select_direction)
+                return (!gb->buttons[Button::Start]  ? 0x8 : 0) |
+                       (!gb->buttons[Button::Select] ? 0x4 : 0) |
+                       (!gb->buttons[Button::A]      ? 0x2 : 0) |
+                       (!gb->buttons[Button::B]      ? 0x1 : 0);
+            else if (select_button)
+                return (!gb->buttons[Button::Down]   ? 0x8 : 0) |
+                       (!gb->buttons[Button::Up]     ? 0x4 : 0) |
+                       (!gb->buttons[Button::Left]   ? 0x2 : 0) |
+                       (!gb->buttons[Button::Right]  ? 0x1 : 0);
+            else
+                return 0;
+            } break;
         case 0x01: // Serial IO data
 
             break;

@@ -1,6 +1,6 @@
 #include "gameboy.h"
 
-GameBoy::GameBoy(const std::string& filename) :
+GameBoy::GameBoy(const std::string& filename) : buttons({false}),
     cartridge(filename), cpu(this), gpu(this), mmu(this, cartridge) {
     interrupt_master_enable = false;
 }
