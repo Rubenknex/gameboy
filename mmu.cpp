@@ -29,6 +29,7 @@ MMU::MMU(GameBoy* gb, const Cartridge& cartridge) : gb(gb), rom_0(cartridge.rom_
     vram.resize(VRAM_SIZE);
     eram.resize(ERAM_SIZE);
     wram.resize(WRAM_SIZE);
+    oam.resize(OAM_SIZE);
     hram.resize(HRAM_SIZE);
 
     select_button = false;
@@ -64,14 +65,16 @@ u8 MMU::read_byte(u16 address) {
         return vram[address & 0x1FFF];
     else if (address < 0xC000)
         return eram[address & 0x1FFF];
-    else if (address < 0xE000)
-        return wram[address & 0x1FFF];
+    //else if (address < 0xE000)
+    //    return wram[address & 0x1FFF];
     else if (address < 0xFE00)
         return wram[address & 0x1FFF];
-    else if (address < 0xFF00)
-        // Graphics sprite information
-        return 0;
-    else if (address < 0xFF80)
+    else if (address < 0xFF00) {
+        if (address < 0xFEA0)
+            return oam[address & 0xFF];
+        else
+            return 0;
+    } else if (address < 0xFF80)
         switch (address & 0xFF) {
         case 0x00: // Joypad port
             // Construct the joypad register byte
@@ -203,10 +206,10 @@ u8 MMU::read_byte(u16 address) {
             return gb->gpu.background_palette;
             break;
         case 0x48: // Object palette 0 data
-
+            return gb->gpu.sprite_palette_0;
             break;
         case 0x49: // Object palette 1 data
-
+            return gb->gpu.sprite_palette_1;
             break;
         case 0x4A: // Window Y
 
@@ -236,14 +239,17 @@ void MMU::write_byte(u16 address, u8 value) {
             gb->gpu.update_tile(address, value);
     } else if (address < 0xC000)
         eram[address & 0x1FFF] = value;
-    else if (address < 0xE000)
-        wram[address & 0x1FFF] = value;
+    //else if (address < 0xE000)
+    //    wram[address & 0x1FFF] = value;
     else if (address < 0xFE00)
         wram[address & 0x1FFF] = value;
-    else if (address < 0xFF00)
+    else if (address < 0xFF00) {
         // Graphics sprite information
-        return;
-    else if (address < 0xFF80)
+        if (address < 0xFEA0) {
+            oam[address & 0xFF] = value;
+            gb->gpu.update_object(address - 0xFE00, value);
+        }
+    } else if (address < 0xFF80)
         switch (address & 0xFF) {
         case 0x00: // Joypad port
             select_button    = (value & 0x20) != 0;
@@ -360,18 +366,24 @@ void MMU::write_byte(u16 address, u8 value) {
         case 0x45: // LY compare
 
             break;
-        case 0x46: // DMA transfer start address
+        case 0x46: {// DMA transfer start address
+            u16 start_addr = (value << 8);
 
-            break;
+            for (int i = 0; i < 0x9F; i++) {
+                //u8 val = read_byte(start_addr + i);
+                //std::cout << std::hex << (int)val << std::endl;
+                write_byte(0xFE00 + i, read_byte(start_addr + i));
+            }
+            } break;
         case 0x47: // BG and window palette data
             gb->gpu.background_palette = value;
             //std::cout << "Set palette: " << std::hex << (int)value << std::endl;
             break;
         case 0x48: // Object palette 0 data
-
+            gb->gpu.sprite_palette_0 = value;
             break;
         case 0x49: // Object palette 1 data
-
+            gb->gpu.sprite_palette_1 = value;
             break;
         case 0x4A: // Window Y
 

@@ -59,7 +59,7 @@ public:
 
     bool in_bios;
     MemoryMapper::Type mapper;
-    std::vector<u8> rom_0, rom_1, vram, eram, wram, hram;
+    std::vector<u8> rom_0, rom_1, vram, eram, wram, oam, hram;
 
     // FF00 joypad input byte
     bool select_button;

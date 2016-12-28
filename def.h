@@ -26,6 +26,7 @@ const int ROM_BANK_SIZE = 0x4000;
 const int VRAM_SIZE = 0x2000;
 const int ERAM_SIZE = 0x2000;
 const int WRAM_SIZE = 0x2000;
+const int OAM_SIZE = 0x9F;
 const int HRAM_SIZE = 0x7F;
 
 // F register flag masks

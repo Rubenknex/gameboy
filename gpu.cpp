@@ -30,13 +30,18 @@ GPU::GPU(GameBoy* gb) : gb(gb), mode(GPUMode::HBlank), cycles(0) {
 
     // 256+128=384 unique tiles, each consisting of 8*8 pixels
     tileset.resize((256 + 128) * 8 * 8);
+
+    // Initialize the sprites collection
+    for (int i = 0; i < 40; i++) {
+        Sprite s = {0, 0, 0, false, false, false, false};
+        sprites.push_back(s);
+    }
 }
 
 void GPU::cycle() {
     redraw = false;
 
     cycles += gb->cpu.get_elapsed_cycles();
-    //std::cout << "CYCLES: " << cycles << std::endl;
 
     switch (mode) {
     case GPUMode::OAM: // Draw sprites
@@ -123,8 +128,31 @@ void GPU::update_tile(u16 address, u8 value) {
     }
 }
 
+void GPU::update_object(u16 address, u8 value) {
+    //std::cout << "updating object " << std::hex << (int)address << " " << (int)value << std::endl;
+
+    int index = address >> 2;
+
+    switch (address & 0x3) {
+    case 0x0:
+        sprites[index].y = value - 16;
+        break;
+    case 0x1:
+        sprites[index].x = value - 8;
+        break;
+    case 0x2:
+        sprites[index].tile = value;
+        break;
+    case 0x3:
+        sprites[index].priority = (value & 0x80) != 0;
+        sprites[index].y_flip   = (value & 0x40) != 0;
+        sprites[index].x_flip   = (value & 0x20) != 0;
+        sprites[index].palette  = (value & 0x10) != 0;
+        break;
+    }
+}
+
 void GPU::render_scanline() {
-    // Only render background if it is set to ON
     if (background_enabled) {
         // The current pixel position in either the x or y direction
         // divided by 8 give the location in the background tilemap
@@ -175,6 +203,46 @@ void GPU::render_scanline() {
 
                 //if (background_tileset && tile < 128)
                 //    tile += 255;
+            }
+        }
+    }
+
+    if (sprites_enabled) {
+        // For every sprite
+        for (int i = 0; i < sprites.size(); i++) {
+            Sprite s = sprites[i];
+
+            // If the sprite is at the height of the current scanline
+            if (s.y + 8 >= current_line && s.y < current_line) {
+                int tile_row = 0;
+
+                // Account for the vertical flip
+                if (s.y_flip)
+                    tile_row = 7 - (current_line - s.y);
+                else
+                    tile_row = (current_line - s.y);
+
+                int canvas_offset = current_line * PIXELS_W + s.x;
+
+                // For all pixels in the row
+                for (int x = 0; x < 8; x++) {
+                    int flipped_x = s.x_flip ? (7 - x) : x;
+                    int value = tileset[s.tile * 64 + tile_row * 8 + flipped_x];
+
+                    u8 mask = 0x3 << (value * 2);
+                    u8 palette = s.palette ? sprite_palette_1 : sprite_palette_0;
+                    int index = (palette & mask) >> (value * 2);
+
+                    // If the pixel is on the screen AND
+                    // it is not a transparant pixel AND
+                    // the sprite has priority OR the background is transparant
+                    if (s.x + x >= 0 && s.x + x < PIXELS_W &&
+                        color_palette[index] != color_palette[0] &&
+                        (s.priority || screen[canvas_offset] == color_palette[0]))
+                        screen[canvas_offset] = color_palette[index];
+
+                    canvas_offset++;
+                }
             }
         }
     }
