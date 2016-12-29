@@ -48,44 +48,44 @@ MMU::~MMU() {
 }
 
 u8 MMU::read_byte(u16 address) {
+    u8 result = 0;
+
     if (address < 0x4000) {
         // Instead of swapping the first 100 bytes when the end of the
         // bios is reached, use a simple flag
         if (in_bios) {
             if (address < 0x100)
-                return bios[address];
+                result = bios[address];
             else if (gb->cpu.PC == 0x100)
                 in_bios = false;
         }
 
         return rom_0[address];
     } else if (address < 0x8000)
-        return rom_1[address & 0x3FFF];
+        result = rom_1[address & 0x3FFF];
     else if (address < 0xA000)
-        return vram[address & 0x1FFF];
+        result = vram[address & 0x1FFF];
     else if (address < 0xC000)
-        return eram[address & 0x1FFF];
+        result = eram[address & 0x1FFF];
     //else if (address < 0xE000)
     //    return wram[address & 0x1FFF];
     else if (address < 0xFE00)
-        return wram[address & 0x1FFF];
+        result = wram[address & 0x1FFF];
     else if (address < 0xFF00) {
         if (address < 0xFEA0)
-            return oam[address & 0xFF];
-        else
-            return 0;
+            result = oam[address & 0xFF];
     } else if (address < 0xFF80)
         switch (address & 0xFF) {
         case 0x00: { // Joypad port
             // Construct the joypad register byte
             // the selection bits are swapped for some reason
             if (select_direction)
-                return (!gb->buttons[Button::Start]  ? 0x8 : 0) |
+                result = (!gb->buttons[Button::Start]  ? 0x8 : 0) |
                        (!gb->buttons[Button::Select] ? 0x4 : 0) |
                        (!gb->buttons[Button::A]      ? 0x2 : 0) |
                        (!gb->buttons[Button::B]      ? 0x1 : 0);
             else if (select_button)
-                return (!gb->buttons[Button::Down]   ? 0x8 : 0) |
+                result = (!gb->buttons[Button::Down]   ? 0x8 : 0) |
                        (!gb->buttons[Button::Up]     ? 0x4 : 0) |
                        (!gb->buttons[Button::Left]   ? 0x2 : 0) |
                        (!gb->buttons[Button::Right]  ? 0x1 : 0);
@@ -99,7 +99,8 @@ u8 MMU::read_byte(u16 address) {
 
             break;
         case 0x04: // Divider
-
+            std::cout << std::hex << (int)(u8)rand() << std::endl;
+            result = (u8)rand();
             break;
         case 0x05: // Timer counter
 
@@ -111,7 +112,7 @@ u8 MMU::read_byte(u16 address) {
 
             break;
         case 0x0F: // Interrupt flags
-            return interrupt_flags;
+            result = interrupt_flags;
             break;
         case 0x10: // Sound mode 1 sweep
 
@@ -181,7 +182,7 @@ u8 MMU::read_byte(u16 address) {
             break;
         case 0x40: // LCD Control
             // Construct the LCD control byte from the gpu parameters
-            return (gb->gpu.lcd_enabled         ? 0x80 : 0) |
+            result = (gb->gpu.lcd_enabled         ? 0x80 : 0) |
                    (gb->gpu.window_tilemap      ? 0x40 : 0) |
                    (gb->gpu.window_enabled      ? 0x20 : 0) |
                    (gb->gpu.background_tileset  ? 0x10 : 0) |
@@ -194,13 +195,13 @@ u8 MMU::read_byte(u16 address) {
 
             break;
         case 0x42: // Scroll Y
-            return gb->gpu.scroll_y;
+            result = gb->gpu.scroll_y;
             break;
         case 0x43: // Scroll X
-            return gb->gpu.scroll_x;
+            result = gb->gpu.scroll_x;
             break;
         case 0x44: // Y Coord
-            return gb->gpu.current_line;
+            result = gb->gpu.current_line;
             break;
         case 0x45: // LY compare
 
@@ -209,13 +210,13 @@ u8 MMU::read_byte(u16 address) {
 
             break;
         case 0x47: // BG and window palette data
-            return gb->gpu.background_palette;
+            result = gb->gpu.background_palette;
             break;
         case 0x48: // Object palette 0 data
-            return gb->gpu.sprite_palette_0;
+            result = gb->gpu.sprite_palette_0;
             break;
         case 0x49: // Object palette 1 data
-            return gb->gpu.sprite_palette_1;
+            result = gb->gpu.sprite_palette_1;
             break;
         case 0x4A: // Window Y
 
@@ -223,15 +224,17 @@ u8 MMU::read_byte(u16 address) {
         case 0x4B: // Window X
 
             break;
-        default:
-            return 0;
+        default: {
+            //std::cout << std::hex << address << std::endl;
+            result = 0;
+        }
         }
     else if (address < 0xFFFF) {
-        return hram[address & 0x7F];
+        result = hram[address & 0x7F];
     } else if (address == 0xFFFF)
-        return interrupt_enable;
-    else
-        return 0;
+        result = interrupt_enable;
+
+    return result;
 }
 
 void MMU::write_byte(u16 address, u8 value) {

@@ -1,4 +1,6 @@
 #include <iostream>
+#include <stdlib.h>
+#include <time.h>
 #include <vector>
 
 #include <SDL2/SDL.h>
@@ -14,8 +16,10 @@ const float MS_PER_FRAME = 1000.0 / FPS;
 
 int main(int argc, char* args[])
 {
-    GameBoy gb("roms/Tetris (World).gb");
-    //GameBoy gb("roms/Dr. Mario (World).gb");
+    srand(time(NULL));
+
+    //GameBoy gb("roms/Tetris (World).gb");
+    GameBoy gb("roms/Dr. Mario (World).gb");
     //GameBoy gb("C:/Users/Ruben/Documents/ROMs/GameBoy/cpu_instrs/cpu_instrs.gb");
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -30,6 +34,7 @@ int main(int argc, char* args[])
         SCREEN_W,
         SCREEN_H,
         SDL_WINDOW_SHOWN);
+
     if (window == NULL) {
         std::cout << "Window creation error: " << SDL_GetError() << std::endl;
         return -1;
@@ -60,14 +65,14 @@ int main(int argc, char* args[])
         }
 
         const Uint8* keys = SDL_GetKeyboardState(NULL);
-        gb.buttons[Button::Up] = keys[SDL_SCANCODE_W];
-        gb.buttons[Button::Down] = keys[SDL_SCANCODE_S];
-        gb.buttons[Button::Left] = keys[SDL_SCANCODE_A];
-        gb.buttons[Button::Right] = keys[SDL_SCANCODE_D];
-        gb.buttons[Button::Start] = keys[SDL_SCANCODE_RETURN];
+        gb.buttons[Button::Up]     = keys[SDL_SCANCODE_W];
+        gb.buttons[Button::Down]   = keys[SDL_SCANCODE_S];
+        gb.buttons[Button::Left]   = keys[SDL_SCANCODE_A];
+        gb.buttons[Button::Right]  = keys[SDL_SCANCODE_D];
+        gb.buttons[Button::Start]  = keys[SDL_SCANCODE_RETURN];
         gb.buttons[Button::Select] = keys[SDL_SCANCODE_SPACE];
-        gb.buttons[Button::A] = keys[SDL_SCANCODE_O];
-        gb.buttons[Button::B] = keys[SDL_SCANCODE_P];
+        gb.buttons[Button::A]      = keys[SDL_SCANCODE_O];
+        gb.buttons[Button::B]      = keys[SDL_SCANCODE_P];
 
         redraw = false;
 

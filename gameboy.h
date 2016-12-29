@@ -25,8 +25,6 @@ public:
     CPU cpu;
     GPU gpu;
     MMU mmu;
-
-    bool interrupt_master_enable;
 };
 
 #endif

@@ -173,8 +173,9 @@ void GPU::render_scanline() {
         int tile = gb->mmu.vram[tilemap_offset + tile_y * 32 + tile_x];
         //std::cout << "drawing tile " << std::dec << tile << std::endl;
 
-        //if (background_tileset && tile < 128)
-        //    tile += 255;
+        //std::cout << background_tileset << " " << (tile < 128) << std::endl;
+        if (!background_tileset && tile < 128)
+            tile += 256;
 
         // Start rendering the whole scanline
         for (int i = 0; i < PIXELS_W; i++) {
@@ -182,12 +183,10 @@ void GPU::render_scanline() {
             int value = tileset[tile * 64 + pixel_y * 8 + pixel_x];
             //std::cout << "Tile: " << std::dec << tile << " " << std::dec << pixel_x << " " << pixel_y << std::endl;
 
-            // Mask to extract the palette color belonging to the color value
-            u8 mask = 0x3 << (value * 2);
-            int index = (background_palette & mask) >> (value * 2);
+            // Extract the color from the palette
+            int color = (background_palette >> (value * 2)) & 0x3;
 
-            // Set the color of the screen pixel
-            screen[canvas_offset] = color_palette[index];
+            screen[canvas_offset] = color_palette[color];
 
             // Move to the next pixel
             canvas_offset++;
@@ -201,8 +200,8 @@ void GPU::render_scanline() {
                 tile_x = (tile_x + 1) & 31;
                 tile = gb->mmu.vram[tilemap_offset + tile_y * 32 + tile_x];
 
-                //if (background_tileset && tile < 128)
-                //    tile += 255;
+                if (!background_tileset && tile < 128)
+                    tile += 256;
             }
         }
     }
@@ -222,24 +221,25 @@ void GPU::render_scanline() {
                 else
                     tile_row = (current_line - s.y);
 
-                int canvas_offset = current_line * PIXELS_W + s.x;
+                tile_row -= 1;
+
+                int canvas_offset = (current_line - 1) * PIXELS_W + s.x;
+                u8 palette = s.palette ? sprite_palette_1 : sprite_palette_0;
 
                 // For all pixels in the row
                 for (int x = 0; x < 8; x++) {
                     int flipped_x = s.x_flip ? (7 - x) : x;
                     int value = tileset[s.tile * 64 + tile_row * 8 + flipped_x];
 
-                    u8 mask = 0x3 << (value * 2);
-                    u8 palette = s.palette ? sprite_palette_1 : sprite_palette_0;
-                    int index = (palette & mask) >> (value * 2);
+                    int index = (palette >> (value * 2)) & 0x3;
 
                     // If the pixel is on the screen AND
                     // it is not a transparant pixel AND
                     // the sprite has priority OR the background is transparant
-                    if (s.x + x >= 0 && s.x + x < PIXELS_W &&
-                        color_palette[index] != color_palette[0] &&
-                        (s.priority || screen[canvas_offset] == color_palette[0]))
+                    if (s.x + x >= 0 && s.x + x < PIXELS_W && value != 0 &&
+                        (!s.priority || screen[canvas_offset] == color_palette[0]))
                         screen[canvas_offset] = color_palette[index];
+
 
                     canvas_offset++;
                 }

@@ -1,6 +1,7 @@
 #ifndef MMU_H
 #define MMU_H
 
+#include <stdlib.h>
 #include <vector>
 
 #include "cartridge.h"

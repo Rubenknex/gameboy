@@ -184,6 +184,26 @@ u16 CPU::pop_from_stack() {
     return value;
 }
 
+void CPU::handle_interrupts() {
+    u8 int_e = gb->mmu.interrupt_enable;
+    u8 int_f = gb->mmu.interrupt_flags;
+    if (interrupt_master_enable && int_e && int_f) {
+        u8 fired = int_e & int_f;
+
+        if (fired & INTERRUPT_VBLANK) {
+            gb->mmu.interrupt_flags &= ~INTERRUPT_VBLANK;
+            interrupt_master_enable = false;
+
+            push_to_stack(PC);
+
+            PC = 0x0040;
+            cycles += 12;
+        } else if (fired) {
+            std::cout << "Unimplemented interrupt occurred: " << std::hex << (int)int_e << " " << (int)int_f << std::endl;
+        }
+    }
+}
+
 void CPU::ALU(u8 y, u8 z, bool immediate) {
     u8* r[8] = {&B, &C, &D, &E, &H, &L, NULL, &A};
     int result;
@@ -358,10 +378,6 @@ void CPU::execute_opcode() {
 
     //tracking = true;
 
-    // Some instructions are supposed to be written to HRAM
-    // from FFB6, but is currently all 0
-
-    // 312
     if (!tracking && PC == 0x1234) {
         tracker++;
         //gb->gpu.dump_vram();
@@ -610,9 +626,9 @@ void CPU::execute_opcode() {
         }
         break;
     case 1:
-        if (z == 6 && y == 6) // HALT
-            return;
-        else // LD r[y], r[z]
+        if (z == 6 && y == 6) { // HALT
+
+        } else // LD r[y], r[z]
             if (y == 6)
                 gb->mmu.write_byte(HL.get(), *r[z]);
             else if (z == 6)
@@ -756,21 +772,5 @@ void CPU::execute_opcode() {
     cycles += elapsed_cycles;
     counter++;
 
-    u8 int_e = gb->mmu.interrupt_enable;
-    u8 int_f = gb->mmu.interrupt_flags;
-    if (interrupt_master_enable && int_e && int_f) {
-        u8 fired = int_e & int_f;
-
-        if (fired & INTERRUPT_VBLANK) {
-            gb->mmu.interrupt_flags &= ~INTERRUPT_VBLANK;
-            interrupt_master_enable = false;
-
-            push_to_stack(PC);
-
-            PC = 0x0040;
-            cycles += 12;
-        } else if (fired) {
-            std::cout << "Unimplemented interrupt occurred: " << std::hex << (int)int_e << " " << (int)int_f << std::endl;
-        }
-    }
+    handle_interrupts();
 }
