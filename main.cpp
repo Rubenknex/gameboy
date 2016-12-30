@@ -18,8 +18,9 @@ int main(int argc, char* args[])
 {
     srand(time(NULL));
 
-    //GameBoy gb("roms/Tetris (World).gb");
-    GameBoy gb("roms/Dr. Mario (World).gb");
+    // intel_do_flush_locked failed: Cannot allocate memory
+    GameBoy gb("roms/Tetris (World).gb");
+    //GameBoy gb("roms/Dr. Mario (World).gb");
     //GameBoy gb("C:/Users/Ruben/Documents/ROMs/GameBoy/cpu_instrs/cpu_instrs.gb");
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -99,6 +100,8 @@ int main(int argc, char* args[])
 
         // Render the screen
         SDL_RenderCopy(renderer, texture, NULL, NULL);
+        SDL_DestroyTexture(texture);
+
         SDL_RenderPresent(renderer);
 
         // Regulate to 60 fps
@@ -107,10 +110,12 @@ int main(int argc, char* args[])
             SDL_Delay(MS_PER_FRAME - elapsed_time);
     }
 
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    SDL_QuitSubSystem(SDL_INIT_EVERYTHING);
     SDL_Quit();
 
-    std::cout << std::cin.get();
+    //std::cout << std::cin.get();
 
     return 0;
 }

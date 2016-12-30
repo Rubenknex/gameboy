@@ -81,14 +81,14 @@ u8 MMU::read_byte(u16 address) {
             // the selection bits are swapped for some reason
             if (select_direction)
                 result = (!gb->buttons[Button::Start]  ? 0x8 : 0) |
-                       (!gb->buttons[Button::Select] ? 0x4 : 0) |
-                       (!gb->buttons[Button::A]      ? 0x2 : 0) |
-                       (!gb->buttons[Button::B]      ? 0x1 : 0);
+                         (!gb->buttons[Button::Select] ? 0x4 : 0) |
+                         (!gb->buttons[Button::A]      ? 0x2 : 0) |
+                         (!gb->buttons[Button::B]      ? 0x1 : 0);
             else if (select_button)
                 result = (!gb->buttons[Button::Down]   ? 0x8 : 0) |
-                       (!gb->buttons[Button::Up]     ? 0x4 : 0) |
-                       (!gb->buttons[Button::Left]   ? 0x2 : 0) |
-                       (!gb->buttons[Button::Right]  ? 0x1 : 0);
+                         (!gb->buttons[Button::Up]     ? 0x4 : 0) |
+                         (!gb->buttons[Button::Left]   ? 0x2 : 0) |
+                         (!gb->buttons[Button::Right]  ? 0x1 : 0);
             else
                 return 0;
             } break;
@@ -99,7 +99,7 @@ u8 MMU::read_byte(u16 address) {
 
             break;
         case 0x04: // Divider
-            std::cout << std::hex << (int)(u8)rand() << std::endl;
+            // Temporary fix, return a random number
             result = (u8)rand();
             break;
         case 0x05: // Timer counter
@@ -183,13 +183,13 @@ u8 MMU::read_byte(u16 address) {
         case 0x40: // LCD Control
             // Construct the LCD control byte from the gpu parameters
             result = (gb->gpu.lcd_enabled         ? 0x80 : 0) |
-                   (gb->gpu.window_tilemap      ? 0x40 : 0) |
-                   (gb->gpu.window_enabled      ? 0x20 : 0) |
-                   (gb->gpu.background_tileset  ? 0x10 : 0) |
-                   (gb->gpu.background_tilemap  ? 0x8 : 0) |
-                   (gb->gpu.sprite_size         ? 0x4 : 0) |
-                   (gb->gpu.sprites_enabled     ? 0x2 : 0) |
-                   (gb->gpu.background_enabled  ? 0x1 : 0);
+                     (gb->gpu.window_tilemap      ? 0x40 : 0) |
+                     (gb->gpu.window_enabled      ? 0x20 : 0) |
+                     (gb->gpu.background_tileset  ? 0x10 : 0) |
+                     (gb->gpu.background_tilemap  ? 0x8 : 0) |
+                     (gb->gpu.sprite_size         ? 0x4 : 0) |
+                     (gb->gpu.sprites_enabled     ? 0x2 : 0) |
+                     (gb->gpu.background_enabled  ? 0x1 : 0);
             break;
         case 0x41: // LCD Status
 
@@ -225,7 +225,6 @@ u8 MMU::read_byte(u16 address) {
 
             break;
         default: {
-            //std::cout << std::hex << address << std::endl;
             result = 0;
         }
         }
@@ -284,8 +283,6 @@ void MMU::write_byte(u16 address, u8 value) {
             break;
         case 0x0F: // Interrupt flags
             interrupt_flags = value;
-            //std::cout << "Writing to interrupt flags: " << std::hex << (int)value << std::endl;
-            //std::cout << "IE=" << interrupt_enable << std::endl;
             break;
         case 0x10: // Sound mode 1 sweep
 
@@ -378,11 +375,8 @@ void MMU::write_byte(u16 address, u8 value) {
         case 0x46: {// DMA transfer start address
             u16 start_addr = (value << 8);
 
-            for (int i = 0; i < 0x9F; i++) {
-                //u8 val = read_byte(start_addr + i);
-                //std::cout << std::hex << (int)val << std::endl;
+            for (int i = 0; i < 0x9F; i++)
                 write_byte(0xFE00 + i, read_byte(start_addr + i));
-            }
             } break;
         case 0x47: // BG and window palette data
             gb->gpu.background_palette = value;
@@ -401,14 +395,10 @@ void MMU::write_byte(u16 address, u8 value) {
 
             break;
         }
-    else if (address < 0xFFFF) {
-        //if (address == 0xFF80) return;
+    else if (address < 0xFFFF)
         hram[address & 0x7F] = value;
-        //std::cout << "Writing to HRAM " << std::hex << address << " " << (int)value << std::endl;
-    }
-    else if (address == 0xFFFF) {
+    else if (address == 0xFFFF)
         interrupt_enable = value;
-    }
 }
 
 u16 MMU::read_word(u16 address) {

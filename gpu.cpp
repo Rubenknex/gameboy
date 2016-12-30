@@ -109,8 +109,8 @@ void GPU::update_tile(u16 address, u8 value) {
     // The AND at the end sets the last bit to 0
     int address_rel = (address - 0x8000) & ~1;
 
-    if ((int)gb->mmu.vram[address_rel] == 0x4C)
-        std::cout << "Read all tiles in memory" << std::endl;
+    //if ((int)gb->mmu.vram[address_rel] == 0x4C)
+    //    std::cout << "Read all tiles in memory" << std::endl;
 
     // For all 8 pixels read the color value (0-3) and store in the gpu tileset
     for (int x = 0; x < 8; x++) {
