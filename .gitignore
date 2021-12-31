@@ -1,4 +1,6 @@
 roms
 
+*.vscode
 *.o
+*.exe
 gameboy
