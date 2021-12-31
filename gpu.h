@@ -26,6 +26,7 @@ public:
     void update_object(u16 address, u8 value);
     void render_scanline();
 
+    u8 get_lcd_byte();
     bool get_redraw();
     int* get_screen_buffer();
     void dump_vram();
