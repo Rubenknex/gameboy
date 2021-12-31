@@ -182,14 +182,7 @@ u8 MMU::read_byte(u16 address) {
             break;
         case 0x40: // LCD Control
             // Construct the LCD control byte from the gpu parameters
-            result = (gb->gpu.lcd_enabled         ? 0x80 : 0) |
-                     (gb->gpu.window_tilemap      ? 0x40 : 0) |
-                     (gb->gpu.window_enabled      ? 0x20 : 0) |
-                     (gb->gpu.background_tileset  ? 0x10 : 0) |
-                     (gb->gpu.background_tilemap  ? 0x8 : 0) |
-                     (gb->gpu.sprite_size         ? 0x4 : 0) |
-                     (gb->gpu.sprites_enabled     ? 0x2 : 0) |
-                     (gb->gpu.background_enabled  ? 0x1 : 0);
+            result = gb->gpu.get_lcd_byte();
             break;
         case 0x41: // LCD Status
 
