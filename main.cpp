@@ -3,6 +3,7 @@
 #include <time.h>
 #include <vector>
 
+#define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
 #include "def.h"
@@ -19,7 +20,7 @@ int main(int argc, char* args[])
     srand(time(NULL));
 
     // intel_do_flush_locked failed: Cannot allocate memory
-    GameBoy gb("roms/Tetris (World).gb");
+    GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\Tetris (World) (Rev A).gb");
     //GameBoy gb("roms/Dr. Mario (World).gb");
     //GameBoy gb("C:/Users/Ruben/Documents/ROMs/GameBoy/cpu_instrs/cpu_instrs.gb");
 
