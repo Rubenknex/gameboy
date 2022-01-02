@@ -384,7 +384,7 @@ void CPU::execute_CB_opcode(u8 opcode) {
             set_half_carry(false); set_carry(value >> 7);
             break;
         case 5: // SRA
-            result = value >> 1;
+            result = (value >> 1) | (value & 0b10000000);
             set_zero(result == 0); set_subtract(false);
             set_half_carry(false); set_carry(value & 0x1);
             break;
