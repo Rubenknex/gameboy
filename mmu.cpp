@@ -39,6 +39,11 @@ MMU::MMU(GameBoy* gb, const Cartridge& cartridge) : gb(gb), rom_0(cartridge.rom_
     left_or_b = true;
     right_or_a = true;
 
+    divide_register = 0;
+    timer_counter = 0;
+    timer_modulo = 0;
+    timer_control = 0;
+
     interrupt_flags = 0;
     interrupt_enable = 0;
 }
@@ -100,7 +105,8 @@ u8 MMU::read_byte(u16 address) {
             break;
         case 0x04: // Divider
             // Temporary fix, return a random number
-            result = (u8)rand();
+            //result = (u8)rand();
+            result = divide_register;
             break;
         case 0x05: // Timer counter
 

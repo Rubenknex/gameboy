@@ -70,6 +70,12 @@ public:
     bool left_or_b;
     bool right_or_a;
 
+    // FF04 divide register
+    u8 divide_register;
+    u8 timer_counter;
+    u8 timer_modulo;
+    u8 timer_control;
+
     // FF0F interrupt flags byte
     u8 interrupt_flags;
     // FFFF interrupt enable byte
