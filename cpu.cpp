@@ -479,15 +479,15 @@ void CPU::execute_opcode() {
                 break;
             case 3: // JR r8
                 result = gb->mmu.read_byte(PC + 1);
-                if (result >= 0x80)
-                    result -= 0x100;
+                if (result >= 128)
+                    result -= 256;
                 PC += result;
                 break;
             case 4: case 5: case 6: case 7: // JR cc[y-4], r8
                 if (cc[y - 4]) {
                     result = gb->mmu.read_byte(PC + 1);
-                    if (result >= 0x80)
-                        result -= 0x100;
+                    if (result >= 128)
+                        result -= 256;
                     PC += result;
                     elapsed_cycles += 4;
                 }
@@ -698,14 +698,46 @@ void CPU::execute_opcode() {
             case 4: // LDH (a8),A
                 gb->mmu.write_byte(0xFF00 + gb->mmu.read_byte(PC + 1), A);
                 break;
-            case 5: // LD (a16),A
-                gb->mmu.write_byte(gb->mmu.read_word(PC + 1), A);
+            case 5: // ADD SP,r8
+                result = gb->mmu.read_byte(PC + 1);
+
+                // Calculate two's complement of the byte
+                if (result >= 128)
+                    result -= 256;
+
+                result = SP + result;
+
+                set_zero(false);
+                set_subtract(false);
+                // Half carry if there is a carry from bit 3 to 4
+                set_half_carry((result & 0x000F) < (SP & 0x000F));
+                // Carry if there is a carry from bit 11 to 12
+                set_carry((result & 0x00FF) < (SP & 0x00FF));
+
+                SP = result & 0xFFFF;
                 break;
             case 6: // LDH A,(a8)
                 A = gb->mmu.read_byte(0xFF00 + gb->mmu.read_byte(PC + 1));
                 break;
-            case 7: // LD A,(a16)
-                A = gb->mmu.read_byte(gb->mmu.read_word(PC + 1));
+            case 7: // LD HL,SP+r8
+                //A = gb->mmu.read_byte(gb->mmu.read_word(PC + 1));
+
+                result = gb->mmu.read_byte(PC + 1);
+
+                // Calculate two's complement of the byte
+                if (result >= 128)
+                    result -= 256;
+
+                result = SP + result;
+
+                set_zero(false);
+                set_subtract(false);
+                // Half carry if there is a carry from bit 3 to 4
+                set_half_carry((result & 0x000F) < (SP & 0x000F));
+                // Carry if there is a carry from bit 11 to 12
+                set_carry((result & 0x00FF) < (SP & 0x00FF));
+
+                HL.set(result & 0xFFFF);
                 break;
             }
             break;
