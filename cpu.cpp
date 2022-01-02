@@ -291,19 +291,17 @@ void CPU::execute_ALU_opcode(u8 opcode, bool immediate) {
         break;
     case 1: // ADC
         result = A + value + get_carry();
-
         set_subtract(false);
-        // Add all lower nibbles separately, else the carry can already occur in
-        // for example value+carry but not in the final result
+        // Add all lower 4 bits separately, else the carry can already occur in
+        // for example (value+carry) but not in the final result
         set_half_carry(((A & 0xF) + (value & 0xF) + get_carry()) > 0xF);
         set_carry(result > 0xFF);
-
         A = result & 0xFF;
         set_zero(A == 0);
         break;
     case 2: // SUB
         result = A - value;
-        set_subtract(false);
+        set_subtract(true);
         set_half_carry((result & 0x0F) > (A & 0x0F));
         set_carry(result < 0);
         A = result & 0xFF;
@@ -311,8 +309,8 @@ void CPU::execute_ALU_opcode(u8 opcode, bool immediate) {
         break;
     case 3: // SBC
         result = A - value - get_carry();
-        set_subtract(false);
-        set_half_carry((result & 0x0F) > (A & 0x0F));
+        set_subtract(true);
+        set_half_carry(((A & 0xF) - (value & 0xF) - get_carry()) < 0);
         set_carry(result < 0);
         A = result & 0xFF;
         set_zero(A == 0);
