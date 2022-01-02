@@ -396,7 +396,7 @@ void CPU::execute_CB_opcode(u8 opcode) {
         case 7: // SRL
             result = value >> 1;
             set_zero(result == 0); set_subtract(false);
-            set_half_carry(false); set_carry(value | 0x1);
+            set_half_carry(false); set_carry(value & 0x1);
             break;
         }
         break;
