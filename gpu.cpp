@@ -249,16 +249,27 @@ void GPU::render_scanline() {
 }
 
 u8 GPU::get_lcd_byte() {
-    u8 lcd = (gb->gpu.lcd_enabled         ? 0x80 : 0) |
-             (gb->gpu.window_tilemap      ? 0x40 : 0) |
-             (gb->gpu.window_enabled      ? 0x20 : 0) |
-             (gb->gpu.background_tileset  ? 0x10 : 0) |
-             (gb->gpu.background_tilemap  ? 0x8 : 0) |
-             (gb->gpu.sprite_size         ? 0x4 : 0) |
-             (gb->gpu.sprites_enabled     ? 0x2 : 0) |
-             (gb->gpu.background_enabled  ? 0x1 : 0);
+    u8 lcd = (lcd_enabled         ? 0x80 : 0) |
+             (window_tilemap      ? 0x40 : 0) |
+             (window_enabled      ? 0x20 : 0) |
+             (background_tileset  ? 0x10 : 0) |
+             (background_tilemap  ? 0x8 : 0) |
+             (sprite_size         ? 0x4 : 0) |
+             (sprites_enabled     ? 0x2 : 0) |
+             (background_enabled  ? 0x1 : 0);
 
     return lcd;
+}
+
+void GPU::set_lcd_byte(u8 lcd) {
+    lcd_enabled         = (lcd & 0x80) != 0;
+    window_tilemap      = (lcd & 0x40) != 0;
+    window_enabled      = (lcd & 0x20) != 0;
+    background_tileset  = (lcd & 0x10) != 0;
+    background_tilemap  = (lcd & 0x8) != 0;
+    sprite_size         = (lcd & 0x4) != 0;
+    sprites_enabled     = (lcd & 0x2) != 0;
+    background_enabled  = (lcd & 0x1) != 0;
 }
 
 bool GPU::get_redraw() {

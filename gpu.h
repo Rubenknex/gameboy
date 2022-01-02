@@ -27,6 +27,7 @@ public:
     void render_scanline();
 
     u8 get_lcd_byte();
+    void set_lcd_byte(u8 lcd);
     bool get_redraw();
     int* get_screen_buffer();
     void dump_vram();

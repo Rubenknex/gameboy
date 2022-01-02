@@ -344,14 +344,7 @@ void MMU::write_byte(u16 address, u8 value) {
 
             break;
         case 0x40: // LCD Control
-            gb->gpu.lcd_enabled         = (value & 0x80) != 0;
-            gb->gpu.window_tilemap      = (value & 0x40) != 0;
-            gb->gpu.window_enabled      = (value & 0x20) != 0;
-            gb->gpu.background_tileset  = (value & 0x10) != 0;
-            gb->gpu.background_tilemap  = (value & 0x8) != 0;
-            gb->gpu.sprite_size         = (value & 0x4) != 0;
-            gb->gpu.sprites_enabled     = (value & 0x2) != 0;
-            gb->gpu.background_enabled  = (value & 0x1) != 0;
+            gb->gpu.set_lcd_byte(value);
             break;
         case 0x41: // LCD Status
 
