@@ -275,32 +275,36 @@ void CPU::execute_ALU_opcode(u8 opcode, bool immediate) {
 
     if (z == 6 && !immediate) // Value at (HL)
         value = gb->mmu.read_byte(HL.get());
-    else if (immediate) // Immediate value
+    else if (immediate) {// Immediate value
         value = gb->mmu.read_byte(PC + 1);
-    else // Value of a register
+    } else // Value of a register
         value = *r[z];
 
     switch (y) {
     case 0: // ADD
         result = A + value;
         set_subtract(false);
-        set_half_carry((result & 0xF) < (A & 0xF));
+        set_half_carry((result & 0x0F) < (A & 0x0F));
         set_carry(result > 0xFF);
         A = result & 0xFF;
         set_zero(A == 0);
         break;
     case 1: // ADC
         result = A + value + get_carry();
+
         set_subtract(false);
-        set_half_carry((result & 0xF) < (A & 0xF));
+        // Add all lower nibbles separately, else the carry can already occur in
+        // for example value+carry but not in the final result
+        set_half_carry(((A & 0xF) + (value & 0xF) + get_carry()) > 0xF);
         set_carry(result > 0xFF);
+
         A = result & 0xFF;
         set_zero(A == 0);
         break;
     case 2: // SUB
         result = A - value;
         set_subtract(false);
-        set_half_carry((result & 0xF) > (A & 0xF));
+        set_half_carry((result & 0x0F) > (A & 0x0F));
         set_carry(result < 0);
         A = result & 0xFF;
         set_zero(A == 0);
@@ -308,7 +312,7 @@ void CPU::execute_ALU_opcode(u8 opcode, bool immediate) {
     case 3: // SBC
         result = A - value - get_carry();
         set_subtract(false);
-        set_half_carry((result & 0xF) > (A & 0xF));
+        set_half_carry((result & 0x0F) > (A & 0x0F));
         set_carry(result < 0);
         A = result & 0xFF;
         set_zero(A == 0);
@@ -332,7 +336,7 @@ void CPU::execute_ALU_opcode(u8 opcode, bool immediate) {
         result = A - value;
         set_zero(result == 0);
         set_subtract(true); // Changed to true
-        set_half_carry((result & 0xF) > (A & 0xF));
+        set_half_carry((result & 0x0F) > (A & 0x0F));
         set_carry(result < 0);
         break;
     }
@@ -422,9 +426,9 @@ void CPU::execute_CB_opcode(u8 opcode) {
 // Instructions to fix:
 // 01: DAA
 // 02: EI interrupt failed
-// 03: E8 and F8 (Add SP,1 / Add SP,-1 / LD HL,SP+1 / LD HL,SP-1)
+// 03: pass
 // 04: CE D6 DE
-// 05: passed
+// 05: pass
 void CPU::execute_opcode() {
     u8 opcode = gb->mmu.read_byte(PC);
 
