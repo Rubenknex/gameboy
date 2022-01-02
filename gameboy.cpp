@@ -6,7 +6,7 @@ GameBoy::GameBoy(const std::string& filename) :
     cpu(this),
     gpu(this),
     mmu(this, cartridge) {
-
+    debug_mode = false;
 }
 
 GameBoy::~GameBoy() {

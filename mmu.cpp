@@ -229,6 +229,7 @@ u8 MMU::read_byte(u16 address) {
         }
     else if (address < 0xFFFF) {
         result = hram[address & 0x7F];
+        //std::cout << std::hex << "Reading HRAM[" << address << "]: " << (int)result << std::endl;
     } else if (address == 0xFFFF)
         result = interrupt_enable;
 
@@ -269,7 +270,7 @@ void MMU::write_byte(u16 address, u8 value) {
 
             break;
         case 0x04: // Divider
-
+            divide_register = 0;
             break;
         case 0x05: // Timer counter
 
@@ -387,9 +388,10 @@ void MMU::write_byte(u16 address, u8 value) {
 
             break;
         }
-    else if (address < 0xFFFF)
+    else if (address < 0xFFFF) {
         hram[address & 0x7F] = value;
-    else if (address == 0xFFFF)
+        //std::cout << std::hex << "Writing HRAM[" << address << "]= " << (int)value << std::endl;
+    } else if (address == 0xFFFF)
         interrupt_enable = value;
 }
 

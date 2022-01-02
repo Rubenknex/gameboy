@@ -25,6 +25,8 @@ public:
     CPU cpu;
     GPU gpu;
     MMU mmu;
+
+    bool debug_mode;
 };
 
 #endif

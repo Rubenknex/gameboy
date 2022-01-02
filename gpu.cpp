@@ -43,6 +43,9 @@ void GPU::cycle() {
 
     cycles += gb->cpu.get_elapsed_cycles();
 
+    if (gb->debug_mode)
+        std::cout << "GPU cycle: mode=" << mode << std::endl;
+
     switch (mode) {
     case GPUMode::OAM: // Draw sprites
         if (cycles >= T_LINE_OAM) {

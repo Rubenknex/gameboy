@@ -4,6 +4,7 @@
 #include <iostream>
 #include <bitset>
 #include <string>
+#include <regex>
 
 #include "gameboy.h"
 
@@ -207,8 +208,24 @@ void CPU::debug_print() {
         std::cout << std::setw(11) << opcode_names_cb[cb_opcode] << " ";
     } else {
         std::cout << std::setw(2) << (int)opcode << " ";
-        std::cout << std::setw(11) << opcode_names[opcode] << " ";
+
+        std::string name = opcode_names[opcode];
+        if (name.find("r8") != std::string::npos) {
+            int result = gb->mmu.read_byte(PC + 1);
+            if (result >= 128)
+                result -= 256;
+            
+            name.replace(name.find("r8"), 2, std::to_string(result));
+        } else if (name.find("(a8)") != std::string::npos) {
+            int result = gb->mmu.read_byte(0xFF00 + gb->mmu.read_byte(PC + 1));
+            //std::cout << "a8=" << (int)gb->mmu.read_byte(PC + 1) << "Value at (a8)=" << result << std::endl;
+            //name.replace(name.find("r8"), 2, std::to_string(result));
+        }
+
+        std::cout << std::setw(11) << name << " ";
     }
+
+    // if opcode name contaisn r8, replace r8 by decimal number?
 
     // Print the 16 bit registers
     std::cout << "AF=" << std::setw(4) << AF.get() << " ";
@@ -229,6 +246,8 @@ void CPU::debug_print() {
     std::cout << std::dec << "c=" << (int)elapsed_cycles;
     std::cout << std::endl;
 
+    std::cout << std::hex << "FF85=" << (int)gb->mmu.read_byte(0xFF00 + 0x85) << std::endl;
+
     //std::cout << std::dec << (int)x << " " << (int)y << " " << (int)z << " " << (int)p << " " << (int)q << std::endl;
 }
 
@@ -236,10 +255,11 @@ void CPU::handle_interrupts() {
     u8 int_e = gb->mmu.interrupt_enable;
     u8 int_f = gb->mmu.interrupt_flags;
 
-    if (interrupt_master_enable && int_e && int_f) {
+    if (interrupt_master_enable) {
         u8 fired = int_e & int_f;
 
         if (fired & INTERRUPT_VBLANK) {
+            //std::cout << "VBlank interrupt" << std::endl;
             gb->mmu.interrupt_flags &= ~INTERRUPT_VBLANK;
             interrupt_master_enable = false;
 
@@ -248,17 +268,34 @@ void CPU::handle_interrupts() {
             PC = 0x0040;
             cycles += 12;
         } else if (fired & INTERRUPT_LCDC) {
-            std::cout << "Interrupt LCDC" << std::endl;
+            //std::cout << "Interrupt LCDC" << std::endl;
+            gb->mmu.interrupt_flags &= ~INTERRUPT_LCDC;
+            interrupt_master_enable = false;
+
+            push_to_stack(PC);
+
+            PC = 0x0048;
+            cycles += 12;
         } else if (fired & INTERRUPT_TIMER) {
-            //std::cout << "Interrupt TIMER" << std::endl;
+            std::cout << "Interrupt TIMER" << std::endl;
+            gb->mmu.interrupt_flags &= ~INTERRUPT_TIMER;
+            interrupt_master_enable = false;
+
+            push_to_stack(PC);
+
+            PC = 0x0050;
+            cycles += 12;
         } else if (fired & INTERRUPT_SERIAL) {
-            std::cout << "Interrupt SERIAL" << std::endl;
+            //std::cout << "Interrupt SERIAL" << std::endl;
+            gb->mmu.interrupt_flags &= ~INTERRUPT_SERIAL;
+            interrupt_master_enable = false;
+
+            push_to_stack(PC);
+
+            PC = 0x0058;
+            cycles += 12;
         } else if (fired & INTERRUPT_JOYPAD) {
             std::cout << "Interrupt JOYPAD" << std::endl;
-        } else {
-            std::cout << "Unimplemented interrupt occurred: " << std::hex << (int)int_e << " " << (int)int_f << std::endl;
-            std::cout << std::bitset<8>(int_e) << " " << std::bitset<8>(int_f) << std::endl;
-            debug_printing = true;
         }
     }
 }
@@ -430,7 +467,9 @@ void CPU::execute_CB_opcode(u8 opcode) {
 // 06: pass
 // 07: pass
 // 08: pass
-// 09: CB 00 01 02 03 04 05 07 28 29 2A 2B 2C 2D 2F 38 39 3A 3B 3C 3D 3F
+// 09: pass
+// 10: pass
+// 11: DAA
 void CPU::execute_opcode() {
     u8 opcode = gb->mmu.read_byte(PC);
 
@@ -461,8 +500,12 @@ void CPU::execute_opcode() {
         //gb->gpu.dump_vram();
     }
 
-    if (debug_printing) {
+    //if (opcode == 0xE0)
+    //    debug_printing = true;
+
+    if (gb->debug_mode) {
         debug_print();
+        debug_printing = false;
     }
 
     elapsed_cycles = 0;
