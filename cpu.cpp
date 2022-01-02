@@ -359,8 +359,8 @@ void CPU::execute_CB_opcode(u8 opcode) {
     case 0:
         switch (y) {
         case 0: // RLC
-            result = (value << 1) | (value & 0x1);
-            set_zero(result == 0); set_subtract(false);
+            result = (value << 1) | (value >> 7);
+            set_zero((result & 0xFF) == 0); set_subtract(false);
             set_half_carry(false); set_carry(value >> 7);
             break;
         case 1: // RRC
@@ -429,6 +429,8 @@ void CPU::execute_CB_opcode(u8 opcode) {
 // 05: pass
 // 06: pass
 // 07: pass
+// 08: pass
+// 09: CB 00 01 02 03 04 05 07 28 29 2A 2B 2C 2D 2F 38 39 3A 3B 3C 3D 3F
 void CPU::execute_opcode() {
     u8 opcode = gb->mmu.read_byte(PC);
 
