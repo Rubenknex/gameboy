@@ -359,22 +359,22 @@ void CPU::execute_CB_opcode(u8 opcode) {
     case 0:
         switch (y) {
         case 0: // RLC
-            result = value << 1 | value & 0x1;
+            result = (value << 1) | (value & 0x1);
             set_zero(result == 0); set_subtract(false);
             set_half_carry(false); set_carry(value >> 7);
             break;
         case 1: // RRC
-            result = value >> 1 | value << 7;
+            result = (value >> 1) | (value << 7);
             set_zero(result == 0); set_subtract(false);
             set_half_carry(false); set_carry(value & 0x1);
             break;
         case 2: // RL
-            result = value << 1 | get_carry();
+            result = (value << 1) | get_carry();
             set_zero(result == 0); set_subtract(false);
             set_half_carry(false); set_carry(value >> 7);
             break;
         case 3: // RR
-            result = value >> 1 | get_carry() << 7;
+            result = (value >> 1) | (get_carry() << 7);
             set_zero(result == 0); set_subtract(false);
             set_half_carry(false); set_carry(value & 0x1);
             break;
@@ -389,7 +389,7 @@ void CPU::execute_CB_opcode(u8 opcode) {
             set_half_carry(false); set_carry(value & 0x1);
             break;
         case 6: // SWAP
-            result = value << 4 | value >> 4;
+            result = (value << 4) | (value >> 4);
             set_zero(result == 0); set_subtract(false);
             set_half_carry(false); set_carry(false);
             break;
@@ -421,12 +421,14 @@ void CPU::execute_CB_opcode(u8 opcode) {
     }
 }
 
-// Instructions to fix:
+// Blargg test results:
 // 01: DAA
 // 02: EI interrupt failed
 // 03: pass
-// 04: CE D6 DE
+// 04: pass
 // 05: pass
+// 06: pass
+// 07: pass
 void CPU::execute_opcode() {
     u8 opcode = gb->mmu.read_byte(PC);
 
