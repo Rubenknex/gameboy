@@ -42,10 +42,12 @@ public:
     void push_to_stack(u16 address);
     u16 pop_from_stack();
 
+    void debug_print();
+
     void handle_interrupts();
 
-    void ALU(u8 y, u8 z, bool immediate);
-    void CB_prefix(u8 x, u8 y, u8 z);
+    void execute_ALU_opcode(u8 opcode, bool immediate);
+    void execute_CB_opcode(u8 opcode);
 
     void execute_opcode();
 
@@ -68,6 +70,8 @@ public:
     Register16 AF, BC, DE, HL;
     u16 PC;
     u16 SP;
+
+    bool debug_printing;
 };
 
 #endif

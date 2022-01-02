@@ -2,6 +2,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include <bitset>
 #include <string>
 
 #include "gameboy.h"
@@ -123,6 +124,8 @@ CPU::CPU(GameBoy* gb) : gb(gb) {
 
     PC = 0x0;
     SP = 0x0;
+
+    debug_printing = false;
 }
 
 CPU::~CPU() {
@@ -184,9 +187,55 @@ u16 CPU::pop_from_stack() {
     return value;
 }
 
+void CPU::debug_print() {
+    u8 opcode = gb->mmu.read_byte(PC);
+
+    //gb->gpu.dump_vram();
+
+    // Set up the print formatting
+    std::cout << std::left << std::uppercase;
+    //std::cout << std::dec << std::setw(4) << counter << " ";
+    std::cout << std::hex;
+
+    // Print the 16 bit program counter
+    std::cout << std::setw(4) << PC << " ";
+
+    // Print the 8 bit opcode and opcode name, distinguish between regular and CB prefix
+    if (opcode == 0xCB) {
+        u8 cb_opcode = gb->mmu.read_byte(PC + 1);
+        std::cout << std::setw(2) << (int)cb_opcode << " ";
+        std::cout << std::setw(11) << opcode_names_cb[cb_opcode] << " ";
+    } else {
+        std::cout << std::setw(2) << (int)opcode << " ";
+        std::cout << std::setw(11) << opcode_names[opcode] << " ";
+    }
+
+    // Print the 16 bit registers
+    std::cout << "AF=" << std::setw(4) << AF.get() << " ";
+    std::cout << "BC=" << std::setw(4) << BC.get() << " ";
+    std::cout << "DE=" << std::setw(4) << DE.get() << " ";
+    std::cout << "HL=" << std::setw(4) << HL.get() << " ";
+
+    // Print the 16 bit stack pointer
+    std::cout << "SP=" << std::setw(4) << SP << " ";
+
+    // Print the flags (bits 4-7 of register F)
+    std::cout << "F=" << get_zero() << get_subtract() << get_half_carry() << get_carry() << " ";
+    //std::cout << "Z" << get_zero() << "N" << get_subtract();
+    //std::cout << "H" << get_half_carry() << "C" << get_carry() << " ";
+
+    // Print the GPU line and cycles
+    std::cout << std::hex << "LY=" << (int)gb->gpu.current_line << " ";
+    std::cout << std::dec << "c=" << (int)elapsed_cycles;
+    std::cout << std::endl;
+
+    //std::cout << std::dec << (int)x << " " << (int)y << " " << (int)z << " " << (int)p << " " << (int)q << std::endl;
+}
+
 void CPU::handle_interrupts() {
     u8 int_e = gb->mmu.interrupt_enable;
     u8 int_f = gb->mmu.interrupt_flags;
+
     if (interrupt_master_enable && int_e && int_f) {
         u8 fired = int_e & int_f;
 
@@ -198,22 +247,37 @@ void CPU::handle_interrupts() {
 
             PC = 0x0040;
             cycles += 12;
-        } else if (fired) {
+        } else if (fired & INTERRUPT_LCDC) {
+            std::cout << "Interrupt LCDC" << std::endl;
+        } else if (fired & INTERRUPT_TIMER) {
+            //std::cout << "Interrupt TIMER" << std::endl;
+        } else if (fired & INTERRUPT_SERIAL) {
+            std::cout << "Interrupt SERIAL" << std::endl;
+        } else if (fired & INTERRUPT_JOYPAD) {
+            std::cout << "Interrupt JOYPAD" << std::endl;
+        } else {
             std::cout << "Unimplemented interrupt occurred: " << std::hex << (int)int_e << " " << (int)int_f << std::endl;
+            std::cout << std::bitset<8>(int_e) << " " << std::bitset<8>(int_f) << std::endl;
+            debug_printing = true;
         }
     }
 }
 
-void CPU::ALU(u8 y, u8 z, bool immediate) {
+// This function carries out all the arithmetic opcodes like ADD/ADC/SUB/etc
+// immediate: if true, the value to use for the operation is given after the
+void CPU::execute_ALU_opcode(u8 opcode, bool immediate) {
     u8* r[8] = {&B, &C, &D, &E, &H, &L, NULL, &A};
     int result;
-    u8 value;
+    u8 value; // The value that is used, e.g. A = A + value
 
-    if (z == 6)
+    u8 y = (opcode >> 3) & 0x7; // Index of half-row in 4-row block (0-7)
+    u8 z = opcode & 0x7; // Index in half-row (0-7)
+
+    if (z == 6 && !immediate) // Value at (HL)
         value = gb->mmu.read_byte(HL.get());
-    else if (immediate)
+    else if (immediate) // Immediate value
         value = gb->mmu.read_byte(PC + 1);
-    else
+    else // Value of a register
         value = *r[z];
 
     switch (y) {
@@ -274,10 +338,14 @@ void CPU::ALU(u8 y, u8 z, bool immediate) {
     }
 }
 
-void CPU::CB_prefix(u8 x, u8 y, u8 z) {
+void CPU::execute_CB_opcode(u8 opcode) {
     u8* r[8] = {&B, &C, &D, &E, &H, &L, NULL, &A};
     u8 result;
     u8 value;
+
+    u8 x = opcode >> 6;
+    u8 y = (opcode >> 3) & 0x7;
+    u8 z = opcode & 0x7;
 
     if (z == 6)
     //if (y == 6)
@@ -342,14 +410,21 @@ void CPU::CB_prefix(u8 x, u8 y, u8 z) {
         break;
     }
 
-    if (x != 1)
+    if (x != 1) {
         if (z == 6)
         //if (y == 6)
             gb->mmu.write_byte(HL.get(), result);
         else
             *r[z] = result;
+    }
 }
 
+// Instructions to fix:
+// 01: DAA
+// 02: EI interrupt failed
+// 03: E8 and F8 (Add SP,1 / Add SP,-1 / LD HL,SP+1 / LD HL,SP-1)
+// 04: CE D6 DE
+// 05: passed
 void CPU::execute_opcode() {
     u8 opcode = gb->mmu.read_byte(PC);
 
@@ -368,60 +443,31 @@ void CPU::execute_opcode() {
     u8 p = y >> 1; // Row in 4-row block (0-3)
     u8 q = y & 0x1; // Left (0) or right (1) half of row
 
-    // Same parameters but now for 0xCB opcodes
-    u8 cb_opcode, cb_x, cb_y, cb_z;
-
     // Intermediate variables to store stuff during opcode execution
     u8 prev = 0;
     int result = 0;
     int a = 0;
 
-    //tracking = true;
+    tracking = true;
 
     if (!tracking && PC == 0x1234) {
         tracker++;
         //gb->gpu.dump_vram();
     }
 
-    if (tracker == 1)
-        tracking = true;
-
-    if (tracking) {
-        //gb->gpu.dump_vram();
-
-        std::cout << std::left << std::uppercase;
-        //std::cout << std::dec << std::setw(4) << counter << " ";
-        std::cout << std::hex;
-        std::cout << std::setw(4) << PC << " ";
-        if (opcode == 0xCB) {
-            cb_opcode = gb->mmu.read_byte(PC + 1);
-            std::cout << std::setw(2) << (int)cb_opcode << " ";
-            std::cout << std::setw(11) << opcode_names_cb[cb_opcode] << " ";
-        } else {
-            std::cout << std::setw(2) << (int)opcode << " ";
-            std::cout << std::setw(11) << opcode_names[opcode] << " ";
-        }
-        std::cout << "AF=" << std::setw(4) << AF.get() << " ";
-        std::cout << "BC=" << std::setw(4) << BC.get() << " ";
-        std::cout << "DE=" << std::setw(4) << DE.get() << " ";
-        std::cout << "HL=" << std::setw(4) << HL.get() << " ";
-        std::cout << "SP=" << std::setw(4) << SP << " ";
-        std::cout << "F=" << get_zero() << get_subtract() << get_half_carry() << get_carry() << " ";
-        //std::cout << "Z" << get_zero() << "N" << get_subtract();
-        //std::cout << "H" << get_half_carry() << "C" << get_carry() << " ";
-        std::cout << std::hex << "LY=" << (int)gb->gpu.current_line << " ";
-        std::cout << std::dec << "c=" << (int)elapsed_cycles;
-        std::cout << std::endl;
-
-        //std::cout << std::dec << (int)x << " " << (int)y << " " << (int)z << " " << (int)p << " " << (int)q << std::endl;
+    if (debug_printing) {
+        debug_print();
     }
 
     elapsed_cycles = 0;
 
+    // Switch per block of 4 rows
     switch (x) {
-    case 0:
+    case 0: // Rows 0-3
+        // Switch per position in half-row
         switch (z) {
         case 0:
+            // Switch per position of half-row in 4-row block
             switch (y) {
             case 0: // NOP
                 break;
@@ -625,7 +671,7 @@ void CPU::execute_opcode() {
             break;
         }
         break;
-    case 1:
+    case 1: // Rows 4-7: LD instructions and HALT
         if (z == 6 && y == 6) { // HALT
 
         } else // LD r[y], r[z]
@@ -636,10 +682,10 @@ void CPU::execute_opcode() {
             else
                 *r[y] = *r[z];
         break;
-    case 2: // ALU[y] r[z]
-        ALU(y, z, false);
+    case 2: // Rows 8-11: arithmetic functions ALU[y] r[z]
+        execute_ALU_opcode(opcode, false);
         break;
-    case 3:
+    case 3: // Rows 12-15
         switch (z) {
         case 0:
             switch (y) {
@@ -666,7 +712,14 @@ void CPU::execute_opcode() {
         case 1:
             switch (q) {
             case 0: // POP rp2[p]
-                rp2[p].set(pop_from_stack());
+                result = pop_from_stack();
+                rp2[p].set(result);
+
+                // When popping AF, the unused lower 4 bits of F can be set
+                // so set those all to zero
+                if (p == 3) {
+                    F &= 0xF0;
+                }
                 break;
             case 1:
                 switch (p) {
@@ -714,12 +767,7 @@ void CPU::execute_opcode() {
                 PC = gb->mmu.read_word(PC + 1) - 3;
                 break;
             case 1: // CB PREFIX
-                cb_opcode = gb->mmu.read_byte(PC + 1);
-                cb_x = cb_opcode >> 6;
-                cb_y = (cb_opcode >> 3) & 0x7;
-                cb_z = cb_opcode & 0x7;
-
-                CB_prefix(cb_x, cb_y, cb_z);
+                execute_CB_opcode(gb->mmu.read_byte(PC + 1));
 
                 // Every CB instruction is length 2
                 PC += 1;
@@ -756,7 +804,7 @@ void CPU::execute_opcode() {
             }
             break;
         case 6: // alu[y] n
-            ALU(y, 0, true);
+            execute_ALU_opcode(opcode, true);
             break;
         case 7: // RST y*8
             //interrupt_master_enable = false;
