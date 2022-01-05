@@ -25,10 +25,12 @@ int main(int argc, char* args[])
 {
     srand(time(NULL));
 
+    //GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\cpu_instrs.gb");
     //GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\02-interrupts.gb");
     GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\Tetris (World) (Rev A).gb");
     //GameBoy gb("roms/Dr. Mario (World).gb");
     //GameBoy gb("C:/Users/Ruben/Documents/ROMs/GameBoy/cpu_instrs/cpu_instrs.gb");
+    gb.debug_mode = false;
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cout << "Init error: " << SDL_GetError() << std::endl;
@@ -54,7 +56,6 @@ int main(int argc, char* args[])
         return -1;
     }
 
-    std::cout << "main: " << renderer << std::endl;
     //SDL_RenderSetLogicalSize(renderer, SCREEN_W, SCREEN_H);
 
     Debug debug = Debug(&gb, renderer);
@@ -66,18 +67,36 @@ int main(int argc, char* args[])
 
     bool stepping_mode = false;
 
+    const Uint8* keys = SDL_GetKeyboardState(NULL);
+
     while (!quit) {
         current_time = SDL_GetTicks();
 
         while (SDL_PollEvent(&e) != 0) {
             switch (e.type) {
+            case SDL_KEYDOWN:
+                switch (e.key.keysym.scancode) {
+                case SDL_SCANCODE_Q:
+                    stepping_mode = !stepping_mode;
+                    break;
+                case SDL_SCANCODE_RIGHT:
+                    gb.cpu.debug_print();
+                    gb.cycle();
+                    break;
+                case SDL_SCANCODE_LEFT:
+                    stepping_mode = false;
+                    break;
+                default:
+
+                    break;
+                }
+                break;
             case SDL_QUIT:
                 quit = true;
                 break;
             }
         }
 
-        const Uint8* keys = SDL_GetKeyboardState(NULL);
         gb.buttons[Button::Up]     = keys[SDL_SCANCODE_W];
         gb.buttons[Button::Down]   = keys[SDL_SCANCODE_S];
         gb.buttons[Button::Left]   = keys[SDL_SCANCODE_A];
@@ -87,27 +106,14 @@ int main(int argc, char* args[])
         gb.buttons[Button::A]      = keys[SDL_SCANCODE_O];
         gb.buttons[Button::B]      = keys[SDL_SCANCODE_P];
 
-
-        if (keys[SDL_SCANCODE_Z])
-            stepping_mode = true;
-        if (keys[SDL_SCANCODE_X])
-            stepping_mode = false;
-        if (keys[SDL_SCANCODE_RIGHT])
-            std::cout <<">" << std::endl;
-
         redraw = false;
 
         // Cycle the gameboy until it wants us to redraw the screen
-        while (!redraw) {
-            if (stepping_mode) {
-                if (keys[SDL_SCANCODE_RIGHT]) {
-                    gb.cpu.debug_print();
-                    gb.cycle();
-                    break;
-                }
-            } else {
-                gb.cycle();
-            }
+        while (!redraw && !stepping_mode) {
+            gb.cycle();
+
+            //if (gb.cpu.current_opcode() == 0xFB)
+            //    stepping_mode = true;
             
             redraw = gb.gpu.get_redraw();
         }

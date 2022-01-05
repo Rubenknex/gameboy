@@ -276,11 +276,11 @@ void MMU::write_byte(u16 address, u8 value) {
             break;
         case 0x06: // Timer modulo
             timer_modulo = value;
-            std::cout << std::hex << "setting timer_modulo=" << (int)timer_modulo << std::endl;
+            //std::cout << std::hex << "setting timer_modulo=" << (int)timer_modulo << std::endl;
             break;
         case 0x07: // Timer control
             timer_control = value;
-            std::cout << std::hex << "setting timer_control=" << (int)timer_control << std::endl;
+            //std::cout << std::hex << "setting timer_control=" << (int)timer_control << std::endl;
             break;
         case 0x0F: // Interrupt flags
             interrupt_flags = value;

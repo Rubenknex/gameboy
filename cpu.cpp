@@ -189,10 +189,15 @@ u16 CPU::pop_from_stack() {
     return value;
 }
 
+u8 CPU::current_opcode() {
+    return gb->mmu.read_byte(PC);
+}
+
 void CPU::debug_print() {
     u8 opcode = gb->mmu.read_byte(PC);
 
-    //gb->gpu.dump_vram();
+    //if (opcode == 0)
+    //    return;
 
     // Set up the print formatting
     std::cout << std::left << std::uppercase;
@@ -239,66 +244,43 @@ void CPU::debug_print() {
 
     // Print the flags (bits 4-7 of register F)
     std::cout << "F=" << get_zero() << get_subtract() << get_half_carry() << get_carry() << " ";
-    //std::cout << "Z" << get_zero() << "N" << get_subtract();
-    //std::cout << "H" << get_half_carry() << "C" << get_carry() << " ";
 
     // Print the GPU line and cycles
     std::cout << std::hex << "LY=" << (int)gb->gpu.current_line << " ";
     std::cout << std::dec << "c=" << (int)elapsed_cycles;
     std::cout << std::endl;
-
-    //std::cout << std::dec << (int)x << " " << (int)y << " " << (int)z << " " << (int)p << " " << (int)q << std::endl;
 }
 
 void CPU::handle_interrupts() {
-    u8 int_e = gb->mmu.interrupt_enable;
-    u8 int_f = gb->mmu.interrupt_flags;
+    u8 pending = gb->mmu.interrupt_enable & gb->mmu.interrupt_flags;
 
-    u8 fired = int_e & int_f;
-    if (fired) {
-        halted = false;
+    if (pending) {
+        //halted = false;
         //std::cout << "halted=false!" << std::endl;
     }
 
-    if (interrupt_master_enable) {
-        if (fired & INTERRUPT_VBLANK) {
-            //std::cout << "VBlank interrupt" << std::endl;
-            gb->mmu.interrupt_flags &= ~INTERRUPT_VBLANK;
+    if (!interrupt_master_enable) {
+        return;
+    }
+
+    u8 handlers[5] = {0x40, 0x48, 0x50, 0x58, 0x60};
+
+    for (int i = 0; i < 5; i++) {
+        // 1=VBLANK, 2=LCDC, 4=TIMER< 8=SERIAL, 16=JOYPAD
+        u8 flag = 1 << i;
+
+        // If this interrupt is enabled and flagged
+        if (pending & flag) {
+            // Reset the interrupt flag
+            gb->mmu.interrupt_flags &= ~flag;
             interrupt_master_enable = false;
 
+            // Handle the interrupt
             push_to_stack(PC);
-
-            PC = 0x0040;
+            PC = handlers[i];
             cycles += 12;
-        } else if (fired & INTERRUPT_LCDC) {
-            //std::cout << "Interrupt LCDC" << std::endl;
-            gb->mmu.interrupt_flags &= ~INTERRUPT_LCDC;
-            interrupt_master_enable = false;
-
-            push_to_stack(PC);
-
-            PC = 0x0048;
-            cycles += 12;
-        } else if (fired & INTERRUPT_TIMER) {
-            std::cout << "Interrupt TIMER" << std::endl;
-            gb->mmu.interrupt_flags &= ~INTERRUPT_TIMER;
-            interrupt_master_enable = false;
-
-            push_to_stack(PC);
-
-            PC = 0x0050;
-            cycles += 12;
-        } else if (fired & INTERRUPT_SERIAL) {
-            //std::cout << "Interrupt SERIAL" << std::endl;
-            gb->mmu.interrupt_flags &= ~INTERRUPT_SERIAL;
-            interrupt_master_enable = false;
-
-            push_to_stack(PC);
-
-            PC = 0x0058;
-            cycles += 12;
-        } else if (fired & INTERRUPT_JOYPAD) {
-            std::cout << "Interrupt JOYPAD" << std::endl;
+            
+            break;
         }
     }
 }
@@ -927,13 +909,6 @@ void CPU::execute_opcode() {
         } else
             gb->mmu.timer_counter = (int)gb->mmu.raw_timer_counter & 0xFF;
     }
-
-    if (halted) {
-        //std::cout << "halted... but still doing stuff" << std::endl;
-        //std::cout << std::hex << (int)gb->mmu.timer_control << std::endl;
-    }
-    //std::cout << std::hex << (int)gb->mmu.timer_control << std::endl;
-    //std::cout << std::dec << (int)gb->mmu.divide_register << " " << (int)gb->mmu.timer_counter << std::endl;
 
     handle_interrupts();
 }

@@ -42,6 +42,8 @@ public:
     void push_to_stack(u16 address);
     u16 pop_from_stack();
 
+    u8 current_opcode();
+
     void debug_print();
 
     void handle_interrupts();

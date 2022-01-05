@@ -27,5 +27,5 @@ void Debug::draw(int x, int y) {
     FC_Draw(m_font, m_renderer, x + 20, 100, fmt::format("IF={0:05b} IE={1:05b} IME={2:b}", m_gb->mmu.interrupt_flags, m_gb->mmu.interrupt_enable, m_gb->cpu.interrupt_master_enable).c_str());
 
     // Timer
-    
+    FC_Draw(m_font, m_renderer, x + 20, 140, fmt::format("DIV={0:2X} TIMA={1:2X} TMA={2:2X} TAC={3:2X}", m_gb->mmu.divide_register, m_gb->mmu.timer_counter, m_gb->mmu.timer_modulo, m_gb->mmu.timer_control).c_str());
 }
