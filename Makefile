@@ -5,7 +5,7 @@ OBJS = $(SOURCES:.cpp=.o)
 CC = g++
 # -Wall: show all warnings, -g: include debugging symbols
 COMP_FLAGS = -Wall -g
-LINK_FLAGS = -lSDL2
+LINK_FLAGS = -lSDL2 -lSDL2_ttf
 
 all: gameboy
 

@@ -6,6 +6,7 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 
 const int CLOCK_FREQ = 4194304;
+const int TIMER_FREQ = 16384;
 
 // Screen dimensions
 const int PIXELS_W = 160;

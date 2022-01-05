@@ -58,9 +58,10 @@ public:
     int tracker;
 
     int counter;
-    int cycles;
+    unsigned int cycles;
     int elapsed_cycles;
 
+    bool halted;
     bool interrupt_master_enable;
 
     u8 A, F;

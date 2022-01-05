@@ -111,6 +111,7 @@ CPU::CPU(GameBoy* gb) : gb(gb) {
     tracking = false;
     tracker = 0;
 
+    halted = false;
     interrupt_master_enable = false;
 
     A = F = 0;
@@ -217,7 +218,7 @@ void CPU::debug_print() {
             
             name.replace(name.find("r8"), 2, std::to_string(result));
         } else if (name.find("(a8)") != std::string::npos) {
-            int result = gb->mmu.read_byte(0xFF00 + gb->mmu.read_byte(PC + 1));
+            //int result = gb->mmu.read_byte(0xFF00 + gb->mmu.read_byte(PC + 1));
             //std::cout << "a8=" << (int)gb->mmu.read_byte(PC + 1) << "Value at (a8)=" << result << std::endl;
             //name.replace(name.find("r8"), 2, std::to_string(result));
         }
@@ -246,8 +247,6 @@ void CPU::debug_print() {
     std::cout << std::dec << "c=" << (int)elapsed_cycles;
     std::cout << std::endl;
 
-    std::cout << std::hex << "FF85=" << (int)gb->mmu.read_byte(0xFF00 + 0x85) << std::endl;
-
     //std::cout << std::dec << (int)x << " " << (int)y << " " << (int)z << " " << (int)p << " " << (int)q << std::endl;
 }
 
@@ -255,9 +254,13 @@ void CPU::handle_interrupts() {
     u8 int_e = gb->mmu.interrupt_enable;
     u8 int_f = gb->mmu.interrupt_flags;
 
-    if (interrupt_master_enable) {
-        u8 fired = int_e & int_f;
+    u8 fired = int_e & int_f;
+    if (fired) {
+        halted = false;
+        //std::cout << "halted=false!" << std::endl;
+    }
 
+    if (interrupt_master_enable) {
         if (fired & INTERRUPT_VBLANK) {
             //std::cout << "VBlank interrupt" << std::endl;
             gb->mmu.interrupt_flags &= ~INTERRUPT_VBLANK;
@@ -505,7 +508,7 @@ void CPU::execute_opcode() {
 
     if (gb->debug_mode) {
         debug_print();
-        debug_printing = false;
+        //debug_printing = false;
     }
 
     elapsed_cycles = 0;
@@ -722,7 +725,8 @@ void CPU::execute_opcode() {
         break;
     case 1: // Rows 4-7: LD instructions and HALT
         if (z == 6 && y == 6) { // HALT
-
+            halted = true;
+            std::cout << "halting! ime=" << interrupt_master_enable << std::endl;
         } else // LD r[y], r[z]
             if (y == 6)
                 gb->mmu.write_byte(HL.get(), *r[z]);
@@ -900,6 +904,36 @@ void CPU::execute_opcode() {
     elapsed_cycles += opcode_cycles[opcode];
     cycles += elapsed_cycles;
     counter++;
+
+
+
+    float timer = ((float)cycles / (float)CLOCK_FREQ) * (float)TIMER_FREQ;
+    gb->mmu.divide_register = (int)timer & 0xFF;
+
+    // If the timer is enabled
+    if (gb->mmu.timer_control & 0b100) {
+        int frequencies[4] = {4096, 262144, 65536, 16384};
+        int freq = frequencies[gb->mmu.timer_control & 0b11];
+
+        gb->mmu.raw_timer_counter += (float)elapsed_cycles / (float)CLOCK_FREQ * (float)freq;
+        //std::cout << "timer_counter=" << (int)gb->mmu.timer_counter << std::endl;
+        
+        // If we overflow the timer
+        if ((int)gb->mmu.raw_timer_counter > 0xFF) {
+            //std::cout << "timer_counter overflow!" << std::endl;
+            gb->mmu.interrupt_flags |= INTERRUPT_TIMER;
+            gb->mmu.raw_timer_counter = gb->mmu.timer_modulo;
+            gb->mmu.timer_counter = gb->mmu.timer_modulo;
+        } else
+            gb->mmu.timer_counter = (int)gb->mmu.raw_timer_counter & 0xFF;
+    }
+
+    if (halted) {
+        //std::cout << "halted... but still doing stuff" << std::endl;
+        //std::cout << std::hex << (int)gb->mmu.timer_control << std::endl;
+    }
+    //std::cout << std::hex << (int)gb->mmu.timer_control << std::endl;
+    //std::cout << std::dec << (int)gb->mmu.divide_register << " " << (int)gb->mmu.timer_counter << std::endl;
 
     handle_interrupts();
 }

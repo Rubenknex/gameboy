@@ -70,16 +70,14 @@ public:
     bool left_or_b;
     bool right_or_a;
 
-    // FF04 divide register
-    u8 divide_register;
-    u8 timer_counter;
-    u8 timer_modulo;
-    u8 timer_control;
+    u8 divide_register; // FF04, DIV
+    float raw_timer_counter;
+    u8 timer_counter; // FF05, TIMA
+    u8 timer_modulo; // FF06, TMA
+    u8 timer_control; // FF07, TAC
 
-    // FF0F interrupt flags byte
-    u8 interrupt_flags;
-    // FFFF interrupt enable byte
-    u8 interrupt_enable;
+    u8 interrupt_flags; // FF0F, IF
+    u8 interrupt_enable; // FFFF, IE
 };
 
 #endif
