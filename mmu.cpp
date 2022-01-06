@@ -1,6 +1,7 @@
 #include "mmu.h"
 
 #include <iostream>
+#include "fmt/format.h"
 
 #include "gameboy.h"
 
@@ -60,13 +61,16 @@ u8 MMU::read_byte(u16 address) {
         // Instead of swapping the first 100 bytes when the end of the
         // bios is reached, use a simple flag
         if (in_bios) {
-            if (address < 0x100)
+            if (address < 0x100) {
                 result = bios[address];
-            else if (gb->cpu.PC == 0x100)
+            } else if (gb->cpu.PC == 0x100)
                 in_bios = false;
+        } else {
+            result = rom_0[address];
         }
 
-        return rom_0[address];
+        // Skip the bios
+        result = rom_0[address];
     } else if (address < 0x8000)
         result = rom_1[address & 0x3FFF];
     else if (address < 0xA000)
@@ -228,7 +232,6 @@ u8 MMU::read_byte(u16 address) {
         }
     else if (address < 0xFFFF) {
         result = hram[address & 0x7F];
-        //std::cout << std::hex << "Reading HRAM[" << address << "]: " << (int)result << std::endl;
     } else if (address == 0xFFFF)
         result = interrupt_enable;
 

@@ -255,7 +255,7 @@ void CPU::handle_interrupts() {
     u8 pending = gb->mmu.interrupt_enable & gb->mmu.interrupt_flags;
 
     if (pending) {
-        //halted = false;
+        halted = false;
         //std::cout << "halted=false!" << std::endl;
     }
 
@@ -279,7 +279,7 @@ void CPU::handle_interrupts() {
             push_to_stack(PC);
             PC = handlers[i];
             cycles += 12;
-            
+
             break;
         }
     }
