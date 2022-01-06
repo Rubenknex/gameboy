@@ -63,14 +63,20 @@ u8 MMU::read_byte(u16 address) {
         if (in_bios) {
             if (address < 0x100) {
                 result = bios[address];
-            } else if (gb->cpu.PC == 0x100)
+            } else {
+                result = rom_0[address];
+            }
+
+            // If we reach the end of the bios, disable it
+            if (gb->cpu.PC == 0x100) {
                 in_bios = false;
+            }
         } else {
             result = rom_0[address];
         }
 
-        // Skip the bios
-        result = rom_0[address];
+        // Uncomment to skip the bios
+        //result = rom_0[address];
     } else if (address < 0x8000)
         result = rom_1[address & 0x3FFF];
     else if (address < 0xA000)
@@ -245,8 +251,10 @@ void MMU::write_byte(u16 address, u8 value) {
         rom_1[address & 0x3FFF] = value;
     else if (address < 0xA000) {
         vram[address & 0x1FFF] = value;
-        if (address < 0x9800)
+        if (address < 0x9800) {
             gb->gpu.update_tile(address, value);
+            //std::cout << fmt::format("updating tile @ {0:x}: {1:x}", address, value) << std::endl;
+        }
     } else if (address < 0xC000)
         eram[address & 0x1FFF] = value;
     //else if (address < 0xE000)
