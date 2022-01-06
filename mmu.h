@@ -58,7 +58,6 @@ public:
 public:
     GameBoy* gb;
 
-    bool in_bios;
     MemoryMapper::Type mapper;
     std::vector<u8> rom_0, rom_1, vram, eram, wram, oam, hram;
 
@@ -75,6 +74,8 @@ public:
     u8 timer_counter; // FF05, TIMA
     u8 timer_modulo; // FF06, TMA
     u8 timer_control; // FF07, TAC
+
+    u8 disable_bios; // FF50
 
     u8 interrupt_flags; // FF0F, IF
     u8 interrupt_enable; // FFFF, IE

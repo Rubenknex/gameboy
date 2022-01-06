@@ -25,8 +25,6 @@ const u8 bios[0x100] = {
 };
 
 MMU::MMU(GameBoy* gb, const Cartridge& cartridge) : gb(gb), rom_0(cartridge.rom_0), rom_1(cartridge.rom_1) {
-    in_bios = true;
-
     vram.resize(VRAM_SIZE);
     eram.resize(ERAM_SIZE);
     wram.resize(WRAM_SIZE);
@@ -46,6 +44,8 @@ MMU::MMU(GameBoy* gb, const Cartridge& cartridge) : gb(gb), rom_0(cartridge.rom_
     timer_modulo = 0;
     timer_control = 0;
 
+    disable_bios = 0;
+
     interrupt_flags = 0;
     interrupt_enable = 0;
 }
@@ -58,22 +58,13 @@ u8 MMU::read_byte(u16 address) {
     u8 result = 0;
 
     if (address < 0x4000) {
-        // Instead of swapping the first 100 bytes when the end of the
-        // bios is reached, use a simple flag
-        if (in_bios) {
-            if (address < 0x100) {
+        if (disable_bios == 0) {
+            if (address < 0x100)
                 result = bios[address];
-            } else {
+            else
                 result = rom_0[address];
-            }
-
-            // If we reach the end of the bios, disable it
-            if (gb->cpu.PC == 0x100) {
-                in_bios = false;
-            }
-        } else {
+        } else
             result = rom_0[address];
-        }
 
         // Uncomment to skip the bios
         //result = rom_0[address];
@@ -398,6 +389,9 @@ void MMU::write_byte(u16 address, u8 value) {
             break;
         case 0x4B: // Window X
 
+            break;
+        case 0x50: // Disable BIOS
+            disable_bios = 0x1;
             break;
         }
     else if (address < 0xFFFF) {
