@@ -5,7 +5,7 @@ GameBoy::GameBoy(const std::string& filename) :
     cartridge(filename),
     cpu(this),
     gpu(this),
-    mmu(this, cartridge) {
+    mmu(this) {
     debug_mode = false;
 }
 

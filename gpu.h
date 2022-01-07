@@ -8,7 +8,8 @@
 class GameBoy;
 
 namespace GPUMode{
-    enum Type {OAM, VRAM, HBlank, VBlank};
+    //enum Type {OAM, VRAM, HBlank, VBlank};
+    enum Type {HBlank, VBlank, OAM, VRAM};
 }
 
 struct Sprite {
@@ -43,10 +44,14 @@ public:
     bool sprites_enabled;
     bool background_enabled;
 
+    // FF41 STAT (LCD status)
+    u8 lcd_status;
+
     // FF43 & FF42 scroll bytes
     u8 scroll_x, scroll_y;
     // FF44 scanline byte
     u8 current_line;
+    u8 ly_compare;
 
     // RGB color values for white, light gray, dark gray and black
     int color_palette[4];

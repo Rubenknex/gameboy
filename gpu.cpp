@@ -14,14 +14,28 @@ GPU::GPU(GameBoy* gb) : gb(gb), mode(GPUMode::HBlank), cycles(0) {
     sprites_enabled = false;
     background_enabled = false;
 
+    lcd_status = 0;
+
     scroll_x = scroll_y = 0;
     current_line = 0;
+    ly_compare = 0;
+
     background_palette = 0;
 
     color_palette[0] = 0xFFFFFFFF;
     color_palette[1] = 0xAAAAAAFF;
     color_palette[2] = 0x555555FF;
     color_palette[3] = 0x000000FF;
+
+    color_palette[0] = 0xaea691FF;
+    color_palette[1] = 0x887b6aFF;
+    color_palette[2] = 0x605444FF;
+    color_palette[3] = 0x4e3f2aFF;
+
+    color_palette[0] = 0xe0f8d0FF;
+    color_palette[1] = 0x88c070FF;
+    color_palette[2] = 0x346856FF;
+    color_palette[3] = 0x081820FF;
 
     redraw = false;
 
@@ -98,6 +112,13 @@ void GPU::cycle() {
         }
         break;
     }
+
+    // Update bit 2 of the LCD status byte (LYC==LY)
+    u8 mask = 1 << 2;
+    lcd_status = (lcd_status & ~mask) | (current_line == ly_compare) << 2;
+
+    if (lcd_status & (1 << 6) && lcd_status & (1 << 2))
+        gb->mmu.interrupt_flags |= INTERRUPT_LCDC;
 }
 
 void GPU::reset() {

@@ -29,6 +29,8 @@ void Debug::draw(int x, int y) {
     // Timer
     FC_Draw(m_font, m_renderer, x + 20, 140, fmt::format("DIV={0:2X} TIMA={1:2X} TMA={2:2X} TAC={3:2X}", m_gb->mmu.divide_register, m_gb->mmu.timer_counter, m_gb->mmu.timer_modulo, m_gb->mmu.timer_control).c_str());
 
+    FC_Draw(m_font, m_renderer, x + 20, 180, fmt::format("STAT={0:08b}", m_gb->gpu.lcd_status).c_str());
+
 
     // VRAM
     unsigned int palette[4] = {0xFFFFFFFF,0xAAAAAAFF,0x555555FF,0x000000FF};
