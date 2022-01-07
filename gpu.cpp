@@ -72,6 +72,8 @@ void GPU::cycle() {
 
             // Finished drawing tiles, move to HBlank
             mode = GPUMode::HBlank;
+            if (GET_BIT(lcd_status, 3))
+                    gb->mmu.interrupt_flags |= INTERRUPT_LCDC;
 
             if (lcd_enabled)
                 render_scanline();
@@ -86,6 +88,8 @@ void GPU::cycle() {
             // to redraw the screen, and move to VBlank
             if (current_line == PIXELS_H - 1) {
                 mode = GPUMode::VBlank;
+                if (GET_BIT(lcd_status, 4))
+                    gb->mmu.interrupt_flags |= INTERRUPT_LCDC;
                 redraw = true;
 
                 // Request a VBlank interrupt
@@ -94,6 +98,8 @@ void GPU::cycle() {
             } else {
                 // Start rendering the next line
                 mode = GPUMode::OAM;
+                if (GET_BIT(lcd_status, 5))
+                    gb->mmu.interrupt_flags |= INTERRUPT_LCDC;
             }
         }
         break;
@@ -107,17 +113,20 @@ void GPU::cycle() {
             if (current_line >= PIXELS_H + 10) {
                 // VBlank is finished, return to line 0
                 mode = GPUMode::OAM;
+                if (GET_BIT(lcd_status, 5))
+                    gb->mmu.interrupt_flags |= INTERRUPT_LCDC;
+
                 current_line = 0;
             }
         }
         break;
     }
 
-    // Update bit 2 of the LCD status byte (LYC==LY)
-    u8 mask = 1 << 2;
-    lcd_status = (lcd_status & ~mask) | (current_line == ly_compare) << 2;
+    // Update LCD status with LY=LYC
+    SET_BIT(lcd_status, 2, current_line == ly_compare);
 
-    if (lcd_status & (1 << 6) && lcd_status & (1 << 2))
+    // If LY=LYC interrupt is enabled and LY=LYC
+    if (GET_BIT(lcd_status, 6) && GET_BIT(lcd_status, 2))
         gb->mmu.interrupt_flags |= INTERRUPT_LCDC;
 }
 

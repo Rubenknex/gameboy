@@ -1,6 +1,10 @@
 #ifndef DEF_H
 #define DEF_H
 
+// Set bit <n> of variable <a> to <value>
+#define SET_BIT(a, n, value) (a = (a & ~(1<<(n))) | ((value)<<(n)))
+#define GET_BIT(a, n) (a & (1<<(n)))
+
 // Convenient shorthand
 typedef unsigned char u8;
 typedef unsigned short u16;
