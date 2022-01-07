@@ -674,6 +674,7 @@ void CPU::execute_opcode() {
                         set_carry(true);
 
                     A = a & 0xFF;
+                    set_zero(A == 0);
                     break;
                 case 5: // CPL
                     A = ~A;
