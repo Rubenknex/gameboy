@@ -105,7 +105,6 @@ void Register16::set(u16 value) {
 }
 
 CPU::CPU(GameBoy* gb) : gb(gb) {
-    counter = 0;
     cycles = 0;
     elapsed_cycles = 0;
 
@@ -201,6 +200,7 @@ void CPU::debug_print() {
     if (opcode == 0xCB)
         opcode_name = opcode_names_cb[opcode];
     
+    // Put the actual intermediate values in the opcode name
     if (opcode_name.find("r8") != std::string::npos) {
         int value = gb->mmu.read_byte(PC + 1);
 
@@ -209,6 +209,10 @@ void CPU::debug_print() {
             value -= 256;
         
         opcode_name.replace(opcode_name.find("r8"), 2, std::to_string(value));
+    } else if (opcode_name.find("d8") != std::string::npos) {
+        int value = gb->mmu.read_byte(PC + 1);
+        
+        opcode_name.replace(opcode_name.find("d8"), 2, fmt::format("{0:02X}", value));
     } else if (opcode_name.find("(a8)") != std::string::npos) {
         int value = 0xFF00 | gb->mmu.read_byte(PC + 1);
         opcode_name.replace(opcode_name.find("(a8)"), 4, fmt::format("{0:04X}", value));
@@ -254,6 +258,29 @@ void CPU::handle_interrupts() {
 
             break;
         }
+    }
+}
+
+void CPU::update_timers() {
+    float timer = ((float)cycles / (float)CLOCK_FREQ) * (float)TIMER_FREQ;
+    gb->mmu.divide_register = (int)timer & 0xFF;
+
+    // If the timer is enabled
+    if (gb->mmu.timer_control & 0b100) {
+        int frequencies[4] = {4096, 262144, 65536, 16384};
+        int freq = frequencies[gb->mmu.timer_control & 0b11];
+
+        gb->mmu.raw_timer_counter += (float)elapsed_cycles / (float)CLOCK_FREQ * (float)freq;
+        //std::cout << "timer_counter=" << (int)gb->mmu.timer_counter << std::endl;
+        
+        // If we overflow the timer
+        if ((int)gb->mmu.raw_timer_counter > 0xFF) {
+            //std::cout << "timer_counter overflow!" << std::endl;
+            gb->mmu.interrupt_flags |= INTERRUPT_TIMER;
+            gb->mmu.raw_timer_counter = gb->mmu.timer_modulo;
+            gb->mmu.timer_counter = gb->mmu.timer_modulo;
+        } else
+            gb->mmu.timer_counter = (int)gb->mmu.raw_timer_counter & 0xFF;
     }
 }
 
@@ -457,419 +484,402 @@ void CPU::execute_opcode() {
     elapsed_cycles = 0;
 
     // Switch per block of 4 rows
-    switch (x) {
-    case 0: // Rows 0-3
-        // Switch per position in half-row
-        switch (z) {
-        case 0:
-            // Switch per position of half-row in 4-row block
-            switch (y) {
-            case 0: // NOP
-                break;
-            case 1: // LD (a16), SP
-                gb->mmu.write_word(gb->mmu.read_word(PC + 1), SP);
-                break;
-            case 2: // STOP 0
+    if (!halted) {
+        switch (x) {
+        case 0: // Rows 0-3
+            // Switch per position in half-row
+            switch (z) {
+            case 0:
+                // Switch per position of half-row in 4-row block
+                switch (y) {
+                case 0: // NOP
+                    break;
+                case 1: // LD (a16), SP
+                    gb->mmu.write_word(gb->mmu.read_word(PC + 1), SP);
+                    break;
+                case 2: // STOP 0
 
-                break;
-            case 3: // JR r8
-                result = gb->mmu.read_byte(PC + 1);
-                if (result >= 128)
-                    result -= 256;
-                PC += result;
-                break;
-            case 4: case 5: case 6: case 7: // JR cc[y-4], r8
-                if (cc[y - 4]) {
+                    break;
+                case 3: // JR r8
                     result = gb->mmu.read_byte(PC + 1);
                     if (result >= 128)
                         result -= 256;
                     PC += result;
-                    elapsed_cycles += 4;
-                }
-                break;
-            }
-            break;
-        case 1:
-            switch (q) {
-            case 0: // LD rp[p], d16
-                if (p < 3)
-                    rp[p].set(gb->mmu.read_word(PC + 1));
-                else
-                    SP = gb->mmu.read_word(PC + 1);
-                break;
-            case 1: // ADD HL, rp[p]
-                u16 prev = HL.get();
-                int result;
-                if (p < 3)
-                    result = prev + rp[p].get();
-                else
-                    result = prev + SP;
-                set_subtract(false);
-                set_half_carry((result & 0xFFF) < (prev & 0xFFF));
-                set_carry(result > 0xFFFF);
-                HL.set(result & 0xFFFF);
-                break;
-            }
-            break;
-        case 2:
-            switch (q) {
-            case 0:
-                switch (p) {
-                case 0: // LD (BC),A
-                    gb->mmu.write_byte(BC.get(), A);
                     break;
-                case 1: // LD (DE),A
-                    gb->mmu.write_byte(DE.get(), A);
-                    break;
-                case 2: // LD (HL+),A
-                    gb->mmu.write_byte(HL.get(), A);
-                    HL.set(HL.get() + 1);
-                    break;
-                case 3: // LD (HL-),A
-                    gb->mmu.write_byte(HL.get(), A);
-                    HL.set(HL.get() - 1);
+                case 4: case 5: case 6: case 7: // JR cc[y-4], r8
+                    if (cc[y - 4]) {
+                        result = gb->mmu.read_byte(PC + 1);
+                        if (result >= 128)
+                            result -= 256;
+                        PC += result;
+                        elapsed_cycles += 4;
+                    }
                     break;
                 }
                 break;
             case 1:
-                switch (p) {
-                case 0: // LD A,(BC)
-                    A = gb->mmu.read_byte(BC.get());
+                switch (q) {
+                case 0: // LD rp[p], d16
+                    if (p < 3)
+                        rp[p].set(gb->mmu.read_word(PC + 1));
+                    else
+                        SP = gb->mmu.read_word(PC + 1);
                     break;
-                case 1: // LD A,(DE)
-                    A = gb->mmu.read_byte(DE.get());
-                    break;
-                case 2: // LD A,(HL+)
-                    A = gb->mmu.read_byte(HL.get());
-                    HL.set(HL.get() + 1);
-                    break;
-                case 3: // LD A,(HL-)
-                    A = gb->mmu.read_byte(HL.get());
-                    HL.set(HL.get() - 1);
+                case 1: // ADD HL, rp[p]
+                    u16 prev = HL.get();
+                    int result;
+                    if (p < 3)
+                        result = prev + rp[p].get();
+                    else
+                        result = prev + SP;
+                    set_subtract(false);
+                    set_half_carry((result & 0xFFF) < (prev & 0xFFF));
+                    set_carry(result > 0xFFFF);
+                    HL.set(result & 0xFFFF);
                     break;
                 }
                 break;
-            }
-            break;
-        case 3:
-            switch (q) {
-            case 0: // INC rp[p]
-                if (p < 3)
-                    rp[p].set(rp[p].get() + 1);
-                else
-                    SP++;
+            case 2:
+                switch (q) {
+                case 0:
+                    switch (p) {
+                    case 0: // LD (BC),A
+                        gb->mmu.write_byte(BC.get(), A);
+                        break;
+                    case 1: // LD (DE),A
+                        gb->mmu.write_byte(DE.get(), A);
+                        break;
+                    case 2: // LD (HL+),A
+                        gb->mmu.write_byte(HL.get(), A);
+                        HL.set(HL.get() + 1);
+                        break;
+                    case 3: // LD (HL-),A
+                        gb->mmu.write_byte(HL.get(), A);
+                        HL.set(HL.get() - 1);
+                        break;
+                    }
+                    break;
+                case 1:
+                    switch (p) {
+                    case 0: // LD A,(BC)
+                        A = gb->mmu.read_byte(BC.get());
+                        break;
+                    case 1: // LD A,(DE)
+                        A = gb->mmu.read_byte(DE.get());
+                        break;
+                    case 2: // LD A,(HL+)
+                        A = gb->mmu.read_byte(HL.get());
+                        HL.set(HL.get() + 1);
+                        break;
+                    case 3: // LD A,(HL-)
+                        A = gb->mmu.read_byte(HL.get());
+                        HL.set(HL.get() - 1);
+                        break;
+                    }
+                    break;
+                }
                 break;
-            case 1: // DEC rp[p]
-                if (p < 3)
-                    rp[p].set(rp[p].get() - 1);
-                else
-                    SP--;
+            case 3:
+                switch (q) {
+                case 0: // INC rp[p]
+                    if (p < 3)
+                        rp[p].set(rp[p].get() + 1);
+                    else
+                        SP++;
+                    break;
+                case 1: // DEC rp[p]
+                    if (p < 3)
+                        rp[p].set(rp[p].get() - 1);
+                    else
+                        SP--;
+                    break;
+                }
                 break;
-            }
-            break;
-        case 4: // INC r[y]
-            if (y == 6) {
-                prev = gb->mmu.read_byte(HL.get());
-                result = prev + 1;
-                gb->mmu.write_byte(HL.get(), result & 0xFF);
-            } else {
-                prev = *r[y];
-                result = prev + 1;
-                *r[y] = result & 0xFF;
-            }
-            set_zero((result & 0xFF) == 0);
-            set_subtract(false);
-            set_half_carry((result & 0xF) < (prev & 0xF));
-            break;
-        case 5: // DEC r[y]
-            if (y == 6) {
-                prev = gb->mmu.read_byte(HL.get());
-                result = prev - 1;
-                gb->mmu.write_byte(HL.get(), result & 0xFF);
-            } else {
-                prev = *r[y];
-                result = prev - 1;
-                *r[y] = result & 0xFF;
-            }
-            set_zero((result & 0xFF) == 0);
-            set_subtract(true);
-            set_half_carry((prev & 0xF) < 0x1);
-            break;
-        case 6: // LD r[y],d8
-            prev = gb->mmu.read_byte(PC + 1);
-            if (y == 6)
-                gb->mmu.write_byte(HL.get(), prev);
-            else
-                *r[y] = prev;
-            break;
-        case 7:
-            switch (y) {
-            case 0: // RLCA
-                set_zero(false); set_subtract(false); set_half_carry(false);
-                set_carry(A >> 7);
-                A = (A << 1) | (A >> 7);
-                break;
-            case 1: // RRCA
-                set_zero(false); set_subtract(false); set_half_carry(false);
-                set_carry(A & 0x1);
-                A = (A >> 1) | ((A & 0x1) << 7);
-                break;
-            case 2: // RLA
-                set_zero(false); set_subtract(false); set_half_carry(false);
-                result = A << 1 | get_carry();
-                set_carry(A >> 7);
-                A = result & 0xFF;
-                break;
-            case 3: // RRA
-                set_zero(false); set_subtract(false); set_half_carry(false);
-                result = A >> 1 | get_carry() << 7;
-                set_carry(A & 0x1);
-                A = result & 0xFF;
-                break;
-            case 4: // DAA
-                a = A;
-                if (!get_subtract()) {
-                    if (get_half_carry() || (a & 0xF) > 9)
-                        a += 0x06;
-                    if (get_carry() || a > 0x9F)
-                        a += 0x60;
+            case 4: // INC r[y]
+                if (y == 6) {
+                    prev = gb->mmu.read_byte(HL.get());
+                    result = prev + 1;
+                    gb->mmu.write_byte(HL.get(), result & 0xFF);
                 } else {
-                    if (get_half_carry())
-                        a = (a - 6) & 0xFF;
-                    if (get_carry())
-                        a -= 0x60;
+                    prev = *r[y];
+                    result = prev + 1;
+                    *r[y] = result & 0xFF;
                 }
-
-                set_half_carry(false);
-
-                if ((a & 0x100) == 0x100)
-                    set_carry(true);
-
-                A = a & 0xFF;
+                set_zero((result & 0xFF) == 0);
+                set_subtract(false);
+                set_half_carry((result & 0xF) < (prev & 0xF));
                 break;
-            case 5: // CPL
-                A = ~A;
+            case 5: // DEC r[y]
+                if (y == 6) {
+                    prev = gb->mmu.read_byte(HL.get());
+                    result = prev - 1;
+                    gb->mmu.write_byte(HL.get(), result & 0xFF);
+                } else {
+                    prev = *r[y];
+                    result = prev - 1;
+                    *r[y] = result & 0xFF;
+                }
+                set_zero((result & 0xFF) == 0);
                 set_subtract(true);
-                set_half_carry(true);
+                set_half_carry((prev & 0xF) < 0x1);
                 break;
-            case 6: // SCF
-                set_subtract(false);
-                set_half_carry(false);
-                set_carry(true);
+            case 6: // LD r[y],d8
+                prev = gb->mmu.read_byte(PC + 1);
+                if (y == 6)
+                    gb->mmu.write_byte(HL.get(), prev);
+                else
+                    *r[y] = prev;
                 break;
-            case 7: // CCF
-                set_subtract(false);
-                set_half_carry(false);
-                set_carry(!get_carry());
+            case 7:
+                switch (y) {
+                case 0: // RLCA
+                    set_zero(false); set_subtract(false); set_half_carry(false);
+                    set_carry(A >> 7);
+                    A = (A << 1) | (A >> 7);
+                    break;
+                case 1: // RRCA
+                    set_zero(false); set_subtract(false); set_half_carry(false);
+                    set_carry(A & 0x1);
+                    A = (A >> 1) | ((A & 0x1) << 7);
+                    break;
+                case 2: // RLA
+                    set_zero(false); set_subtract(false); set_half_carry(false);
+                    result = A << 1 | get_carry();
+                    set_carry(A >> 7);
+                    A = result & 0xFF;
+                    break;
+                case 3: // RRA
+                    set_zero(false); set_subtract(false); set_half_carry(false);
+                    result = A >> 1 | get_carry() << 7;
+                    set_carry(A & 0x1);
+                    A = result & 0xFF;
+                    break;
+                case 4: // DAA
+                    a = A;
+                    if (!get_subtract()) {
+                        if (get_half_carry() || (a & 0xF) > 9)
+                            a += 0x06;
+                        if (get_carry() || a > 0x9F)
+                            a += 0x60;
+                    } else {
+                        if (get_half_carry())
+                            a = (a - 6) & 0xFF;
+                        if (get_carry())
+                            a -= 0x60;
+                    }
+
+                    set_half_carry(false);
+
+                    if ((a & 0x100) == 0x100)
+                        set_carry(true);
+
+                    A = a & 0xFF;
+                    break;
+                case 5: // CPL
+                    A = ~A;
+                    set_subtract(true);
+                    set_half_carry(true);
+                    break;
+                case 6: // SCF
+                    set_subtract(false);
+                    set_half_carry(false);
+                    set_carry(true);
+                    break;
+                case 7: // CCF
+                    set_subtract(false);
+                    set_half_carry(false);
+                    set_carry(!get_carry());
+                    break;
+                }
                 break;
             }
             break;
-        }
-        break;
-    case 1: // Rows 4-7: LD instructions and HALT
-        if (z == 6 && y == 6) { // HALT
-            halted = true;
-            //std::cout << "halting! ime=" << interrupt_master_enable << std::endl;
-        } else // LD r[y], r[z]
-            if (y == 6)
-                gb->mmu.write_byte(HL.get(), *r[z]);
-            else if (z == 6)
-                *r[y] = gb->mmu.read_byte(HL.get());
-            else
-                *r[y] = *r[z];
-        break;
-    case 2: // Rows 8-11: arithmetic functions ALU[y] r[z]
-        execute_ALU_opcode(opcode, false);
-        break;
-    case 3: // Rows 12-15
-        switch (z) {
-        case 0:
-            switch (y) {
-            case 0: case 1: case 2: case 3: // RET cc[y]
-                if (cc[y]) {
-                    PC = pop_from_stack() - 1;
+        case 1: // Rows 4-7: LD instructions and HALT
+            if (z == 6 && y == 6) { // HALT
+                halted = true;
+                //std::cout << "halting! ime=" << interrupt_master_enable << std::endl;
+            } else // LD r[y], r[z]
+                if (y == 6)
+                    gb->mmu.write_byte(HL.get(), *r[z]);
+                else if (z == 6)
+                    *r[y] = gb->mmu.read_byte(HL.get());
+                else
+                    *r[y] = *r[z];
+            break;
+        case 2: // Rows 8-11: arithmetic functions ALU[y] r[z]
+            execute_ALU_opcode(opcode, false);
+            break;
+        case 3: // Rows 12-15
+            switch (z) {
+            case 0:
+                switch (y) {
+                case 0: case 1: case 2: case 3: // RET cc[y]
+                    if (cc[y]) {
+                        PC = pop_from_stack() - 1;
+                        elapsed_cycles += 12;
+                    }
+                    break;
+                case 4: // LDH (a8),A
+                    gb->mmu.write_byte(0xFF00 + gb->mmu.read_byte(PC + 1), A);
+                    break;
+                case 5: // ADD SP,r8
+                    result = gb->mmu.read_byte(PC + 1);
+
+                    // Calculate two's complement of the byte
+                    if (result >= 128)
+                        result -= 256;
+
+                    result = SP + result;
+
+                    set_zero(false);
+                    set_subtract(false);
+                    // Half carry if there is a carry from bit 3 to 4
+                    set_half_carry((result & 0x000F) < (SP & 0x000F));
+                    // Carry if there is a carry from bit 11 to 12
+                    set_carry((result & 0x00FF) < (SP & 0x00FF));
+
+                    SP = result & 0xFFFF;
+                    break;
+                case 6: // LDH A,(a8)
+                    A = gb->mmu.read_byte(0xFF00 + gb->mmu.read_byte(PC + 1));
+                    break;
+                case 7: // LD HL,SP+r8
+                    //A = gb->mmu.read_byte(gb->mmu.read_word(PC + 1));
+
+                    result = gb->mmu.read_byte(PC + 1);
+
+                    // Calculate two's complement of the byte
+                    if (result >= 128)
+                        result -= 256;
+
+                    result = SP + result;
+
+                    set_zero(false);
+                    set_subtract(false);
+                    // Half carry if there is a carry from bit 3 to 4
+                    set_half_carry((result & 0x000F) < (SP & 0x000F));
+                    // Carry if there is a carry from bit 11 to 12
+                    set_carry((result & 0x00FF) < (SP & 0x00FF));
+
+                    HL.set(result & 0xFFFF);
+                    break;
+                }
+                break;
+            case 1:
+                switch (q) {
+                case 0: // POP rp2[p]
+                    result = pop_from_stack();
+                    rp2[p].set(result);
+
+                    // When popping AF, the unused lower 4 bits of F can be set
+                    // so set those all to zero
+                    if (p == 3) {
+                        F &= 0xF0;
+                    }
+                    break;
+                case 1:
+                    switch (p) {
+                    case 0: // RET
+                        PC = pop_from_stack() - 1;
+                        break;
+                    case 1: // RETI
+                        interrupt_master_enable = true;
+                        PC = pop_from_stack() - 1;
+                        break;
+                    case 2: // JP (HL)
+                        PC = HL.get() - 1;
+                        break;
+                    case 3: // LD SP,HL
+                        SP = HL.get();
+                        break;
+                    }
+                }
+                break;
+            case 2: // JP cc[y],nn // LIMIT TO UPPER 4
+                switch (y) {
+                case 0: case 1: case 2: case 3:
+                    if (cc[y]) {
+                        PC = gb->mmu.read_word(PC + 1) - 3;
+                        elapsed_cycles += 4;
+                    }
+                    break;
+                case 4: // LD (FF00+C), A
+                    gb->mmu.write_byte(0xFF00 + C, A);
+                    break;
+                case 5: // LD (a16), A
+                    gb->mmu.write_byte(gb->mmu.read_word(PC + 1), A);
+                    break;
+                case 6: // LD A, (FF00+C)
+                    A = gb->mmu.read_byte(0xFF00 + C);
+                    break;
+                case 7: // LD A, (a16)
+                    A = gb->mmu.read_byte(gb->mmu.read_word(PC + 1));
+                    break;
+                }
+                break;
+            case 3:
+                switch (y) {
+                case 0: // JP nn
+                    PC = gb->mmu.read_word(PC + 1) - 3;
+                    break;
+                case 1: // CB PREFIX
+                    execute_CB_opcode(gb->mmu.read_byte(PC + 1));
+
+                    // Every CB instruction is length 2
+                    PC += 1;
+                    elapsed_cycles += 8;
+                    if (z == 0x6 || z == 0xE)
+                        elapsed_cycles += 8;
+                    break;
+                case 6: // DI
+                    interrupt_master_enable = false;
+                    break;
+                case 7: // EI
+                    interrupt_master_enable = true;
+                    break;
+                }
+                break;
+            case 4: // CALL cc[y],nn
+                if (y < 4 && cc[y]) {
+                    push_to_stack(PC + 3);
+                    PC = gb->mmu.read_word(PC + 1) - 3;
                     elapsed_cycles += 12;
                 }
                 break;
-            case 4: // LDH (a8),A
-                gb->mmu.write_byte(0xFF00 + gb->mmu.read_byte(PC + 1), A);
-                break;
-            case 5: // ADD SP,r8
-                result = gb->mmu.read_byte(PC + 1);
-
-                // Calculate two's complement of the byte
-                if (result >= 128)
-                    result -= 256;
-
-                result = SP + result;
-
-                set_zero(false);
-                set_subtract(false);
-                // Half carry if there is a carry from bit 3 to 4
-                set_half_carry((result & 0x000F) < (SP & 0x000F));
-                // Carry if there is a carry from bit 11 to 12
-                set_carry((result & 0x00FF) < (SP & 0x00FF));
-
-                SP = result & 0xFFFF;
-                break;
-            case 6: // LDH A,(a8)
-                A = gb->mmu.read_byte(0xFF00 + gb->mmu.read_byte(PC + 1));
-                break;
-            case 7: // LD HL,SP+r8
-                //A = gb->mmu.read_byte(gb->mmu.read_word(PC + 1));
-
-                result = gb->mmu.read_byte(PC + 1);
-
-                // Calculate two's complement of the byte
-                if (result >= 128)
-                    result -= 256;
-
-                result = SP + result;
-
-                set_zero(false);
-                set_subtract(false);
-                // Half carry if there is a carry from bit 3 to 4
-                set_half_carry((result & 0x000F) < (SP & 0x000F));
-                // Carry if there is a carry from bit 11 to 12
-                set_carry((result & 0x00FF) < (SP & 0x00FF));
-
-                HL.set(result & 0xFFFF);
-                break;
-            }
-            break;
-        case 1:
-            switch (q) {
-            case 0: // POP rp2[p]
-                result = pop_from_stack();
-                rp2[p].set(result);
-
-                // When popping AF, the unused lower 4 bits of F can be set
-                // so set those all to zero
-                if (p == 3) {
-                    F &= 0xF0;
-                }
-                break;
-            case 1:
-                switch (p) {
-                case 0: // RET
-                    PC = pop_from_stack() - 1;
+            case 5:
+                switch (q) {
+                case 0: // PUSH rp2[p]
+                    push_to_stack(rp2[p].get());
                     break;
-                case 1: // RETI
-                    interrupt_master_enable = true;
-                    PC = pop_from_stack() - 1;
-                    break;
-                case 2: // JP (HL)
-                    PC = HL.get() - 1;
-                    break;
-                case 3: // LD SP,HL
-                    SP = HL.get();
+                case 1:
+                    if (p == 0) { // CALL nn
+                        push_to_stack(PC + 3);
+                        PC = gb->mmu.read_word(PC + 1) - 3;
+                    }
                     break;
                 }
-            }
-            break;
-        case 2: // JP cc[y],nn // LIMIT TO UPPER 4
-            switch (y) {
-            case 0: case 1: case 2: case 3:
-                if (cc[y]) {
-                    PC = gb->mmu.read_word(PC + 1) - 3;
-                    elapsed_cycles += 4;
-                }
                 break;
-            case 4: // LD (FF00+C), A
-                gb->mmu.write_byte(0xFF00 + C, A);
+            case 6: // alu[y] n
+                execute_ALU_opcode(opcode, true);
                 break;
-            case 5: // LD (a16), A
-                gb->mmu.write_byte(gb->mmu.read_word(PC + 1), A);
-                break;
-            case 6: // LD A, (FF00+C)
-                A = gb->mmu.read_byte(0xFF00 + C);
-                break;
-            case 7: // LD A, (a16)
-                A = gb->mmu.read_byte(gb->mmu.read_word(PC + 1));
+            case 7: // RST y*8
+                //interrupt_master_enable = false;
+                push_to_stack(PC + 1);
+                PC = y * 8 - 1;
                 break;
             }
-            break;
-        case 3:
-            switch (y) {
-            case 0: // JP nn
-                PC = gb->mmu.read_word(PC + 1) - 3;
-                break;
-            case 1: // CB PREFIX
-                execute_CB_opcode(gb->mmu.read_byte(PC + 1));
-
-                // Every CB instruction is length 2
-                PC += 1;
-                elapsed_cycles += 8;
-                if (z == 0x6 || z == 0xE)
-                    elapsed_cycles += 8;
-                break;
-            case 6: // DI
-                interrupt_master_enable = false;
-                break;
-            case 7: // EI
-                interrupt_master_enable = true;
-                break;
-            }
-            break;
-        case 4: // CALL cc[y],nn
-            if (y < 4 && cc[y]) {
-                push_to_stack(PC + 3);
-                PC = gb->mmu.read_word(PC + 1) - 3;
-                elapsed_cycles += 12;
-            }
-            break;
-        case 5:
-            switch (q) {
-            case 0: // PUSH rp2[p]
-                push_to_stack(rp2[p].get());
-                break;
-            case 1:
-                if (p == 0) { // CALL nn
-                    push_to_stack(PC + 3);
-                    PC = gb->mmu.read_word(PC + 1) - 3;
-                }
-                break;
-            }
-            break;
-        case 6: // alu[y] n
-            execute_ALU_opcode(opcode, true);
-            break;
-        case 7: // RST y*8
-            //interrupt_master_enable = false;
-            push_to_stack(PC + 1);
-            PC = y * 8 - 1;
             break;
         }
-        break;
+
+        PC += opcode_bytes[opcode];
+        elapsed_cycles += opcode_cycles[opcode];
+        cycles += elapsed_cycles;
+    } else {
+        //std::cout << "halted -> dont execute anything" << std::endl;
+        elapsed_cycles += 4;
+        cycles += elapsed_cycles;
     }
 
-    PC += opcode_bytes[opcode];
-    elapsed_cycles += opcode_cycles[opcode];
-    cycles += elapsed_cycles;
-    counter++;
-
-
-
-    float timer = ((float)cycles / (float)CLOCK_FREQ) * (float)TIMER_FREQ;
-    gb->mmu.divide_register = (int)timer & 0xFF;
-
-    // If the timer is enabled
-    if (gb->mmu.timer_control & 0b100) {
-        int frequencies[4] = {4096, 262144, 65536, 16384};
-        int freq = frequencies[gb->mmu.timer_control & 0b11];
-
-        gb->mmu.raw_timer_counter += (float)elapsed_cycles / (float)CLOCK_FREQ * (float)freq;
-        //std::cout << "timer_counter=" << (int)gb->mmu.timer_counter << std::endl;
-        
-        // If we overflow the timer
-        if ((int)gb->mmu.raw_timer_counter > 0xFF) {
-            //std::cout << "timer_counter overflow!" << std::endl;
-            gb->mmu.interrupt_flags |= INTERRUPT_TIMER;
-            gb->mmu.raw_timer_counter = gb->mmu.timer_modulo;
-            gb->mmu.timer_counter = gb->mmu.timer_modulo;
-        } else
-            gb->mmu.timer_counter = (int)gb->mmu.raw_timer_counter & 0xFF;
-    }
-
+    update_timers();
     handle_interrupts();
 }

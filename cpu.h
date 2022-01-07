@@ -47,6 +47,7 @@ public:
     void debug_print();
 
     void handle_interrupts();
+    void update_timers();
 
     void execute_ALU_opcode(u8 opcode, bool immediate);
     void execute_CB_opcode(u8 opcode);
@@ -59,7 +60,6 @@ public:
     bool tracking;
     int tracker;
 
-    int counter;
     unsigned int cycles;
     int elapsed_cycles;
 
