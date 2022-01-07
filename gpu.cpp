@@ -208,7 +208,7 @@ void GPU::render_scanline() {
 
     if (sprites_enabled) {
         // For every sprite
-        for (int i = 0; i < sprites.size(); i++) {
+        for (std::size_t i = 0; i < sprites.size(); i++) {
             Sprite s = sprites[i];
 
             // If the sprite is at the height of the current scanline
