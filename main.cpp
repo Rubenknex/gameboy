@@ -1,11 +1,4 @@
 #include <iostream>
-#include <iomanip>
-#include <bitset>
-#include <sstream>
-#include <stdlib.h>
-#include <time.h>
-#include <vector>
-#include <numeric>
 
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
@@ -24,11 +17,10 @@ const float MS_PER_FRAME = 1000.0 / FPS;
 
 int main(int argc, char* args[])
 {
-    srand(time(NULL));
-
     //GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\cpu_instrs.gb");
-    //GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\02-interrupts.gb");
-    GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\Tetris (World) (Rev A).gb");
+    //GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\01-special.gb");
+    //GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\Tetris (World) (Rev A).gb");
+    GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\Super Mario Land (World).gb");
     //GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\Dr. Mario (World).gb");
     //GameBoy gb("roms/Dr. Mario (World).gb");
     //GameBoy gb("C:/Users/Ruben/Documents/ROMs/GameBoy/cpu_instrs/cpu_instrs.gb");
@@ -86,17 +78,9 @@ int main(int argc, char* args[])
                     gb.cpu.debug_print();
                     gb.cycle();
                     break;
-                case SDL_SCANCODE_LEFT:
-                    stepping_mode = false;
-                    break;
                 default:
                     break;
                 }
-                break;
-            case SDL_WINDOWEVENT:
-                // Added for >1 windows
-                if (e.window.event == SDL_WINDOWEVENT_CLOSE)
-                    quit = true;
                 break;
             case SDL_QUIT:
                 quit = true;
@@ -118,6 +102,10 @@ int main(int argc, char* args[])
         // Cycle the gameboy until it wants us to redraw the screen
         while (!redraw && !stepping_mode) {
             gb.cycle();
+
+            if (gb.apu.sample_queue_index == 0) {
+                // play audio?
+            }
 
             if (break_instr != 0 && gb.cpu.current_opcode() == break_instr)
                 stepping_mode = true;

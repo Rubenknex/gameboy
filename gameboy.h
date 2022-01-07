@@ -4,6 +4,7 @@
 #include <string>
 
 #include "cartridge.h"
+#include "apu.h"
 #include "cpu.h"
 #include "gpu.h"
 #include "mmu.h"
@@ -22,6 +23,7 @@ public:
 public:
 	bool buttons[8];
     Cartridge cartridge;
+    APU apu;
     CPU cpu;
     GPU gpu;
     MMU mmu;

@@ -32,6 +32,12 @@ void Debug::draw(int x, int y) {
     FC_Draw(m_font, m_renderer, x + 20, 180, fmt::format("STAT={0:08b}", m_gb->gpu.lcd_status).c_str());
 
 
+    // Audio
+    int ch1_freq = ((m_gb->apu.NR14 & 0b111) << 8) | m_gb->apu.NR13;
+    int ch2_freq = ((m_gb->apu.NR24 & 0b111) << 8) | m_gb->apu.NR23;
+    FC_Draw(m_font, m_renderer, x + 20, 220, fmt::format("F1={} F2={} sqi={}", ch1_freq, ch2_freq, m_gb->apu.ch1_timer).c_str());
+
+
     // VRAM
     unsigned int palette[4] = {0xFFFFFFFF,0xAAAAAAFF,0x555555FF,0x000000FF};
     std::vector<int> conv;
@@ -67,6 +73,41 @@ void Debug::draw(int x, int y) {
 
     // Render the gameboy texture onto the screen
     SDL_Rect dst = {x + 400, 20, 16*8*2, 24*8*2};
+    SDL_RenderCopy(m_renderer, texture, NULL, &dst);
+    SDL_DestroyTexture(texture);
+
+
+    // Audio waveforms
+    // 256 x 8 image
+    std::vector<int> img;
+    img.resize(256*8);
+    std::fill(img.begin(), img.end(), palette[3]);
+
+    // Convert the gameboy tiledata of a series of 64 values to an array
+    // that we can draw on the screen
+    for (int sample = 0; sample < 256; sample++) {
+        int value = m_gb->apu.sample_queue[sample];
+        
+        img[value*256 + sample] = palette[0];
+    }
+
+    // 16x24 tiles of 8x8 pixels
+    screen = SDL_CreateRGBSurfaceFrom(
+        &img[0],
+        256, // width
+        8, // height
+        32, // bits per pixel
+        256*4, // bytes per row of pixels
+        0xFF000000,
+        0x00FF0000,
+        0x0000FF00,
+        0x000000FF);
+
+    texture = SDL_CreateTextureFromSurface(m_renderer, screen);
+    SDL_FreeSurface(screen);
+
+    // Render the gameboy texture onto the screen
+    dst = {x + 20, 400, 256, 8};
     SDL_RenderCopy(m_renderer, texture, NULL, &dst);
     SDL_DestroyTexture(texture);
 }

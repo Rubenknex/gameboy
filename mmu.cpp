@@ -123,67 +123,67 @@ u8 MMU::read_byte(u16 address) {
             result = interrupt_flags;
             break;
         case 0x10: // Sound mode 1 sweep
-
+            result = gb->apu.NR10;
             break;
         case 0x11: // Sound mode 1 length/wave pattern duty
-
+            result = gb->apu.NR11;
             break;
         case 0x12: // Sound mode 1 envelope
-
+            result = gb->apu.NR12;
             break;
         case 0x13: // Sound mode 1 frequency low
-
+            result = 0;
             break;
         case 0x14: // Sound mode 1 frequency high
-
+            result = gb->apu.NR14;
             break;
         case 0x16: // Sound mode 2 length/wave pattern duty
-
+            result = gb->apu.NR21;
             break;
         case 0x17: // Sound mode 2 envelope
-
+            result = gb->apu.NR22;
             break;
         case 0x18: // Sound mode 2 frequency low
-
+            result = 0;
             break;
         case 0x19: // Sound mode 2 frequency high
-
+            result = gb->apu.NR24;
             break;
         case 0x1A: // Sound mode 3 on/off
-
+            result = gb->apu.NR30;
             break;
         case 0x1B: // Sound mode 3 length
-
+            result = 0;
             break;
         case 0x1C: // Sound mode 3 output level
-
+            result = gb->apu.NR32;
             break;
         case 0x1D: // Sound mode 3 frequency low
-
+            result = 0;
             break;
         case 0x1E: // Sound mode 3 frequency high
-
+            result = gb->apu.NR34;
             break;
         case 0x20: // Sound mode 4 length
-
+            result = 0;
             break;
         case 0x21: // Sound mode 4 envelope
-
+            result = gb->apu.NR42;
             break;
         case 0x22: // Sound mode 4 polynomial counter
-
+            result = gb->apu.NR43;
             break;
         case 0x23: // Sound mode 4 counter/consecutive
-
+            result = gb->apu.NR44;
             break;
         case 0x24: // Channel control
-
+            result = gb->apu.NR50;
             break;
         case 0x25: // Sound output terminal
-
+            result = gb->apu.NR51;
             break;
         case 0x26: // Sound on/off
-
+            result = gb->apu.NR52;
             break;
         case 0x30: // Waveform storage5
 
@@ -300,31 +300,39 @@ void MMU::write_byte(u16 address, u8 value) {
             interrupt_flags = value;
             break;
         case 0x10: // Sound mode 1 sweep
-
+            gb->apu.NR10 = value;
             break;
         case 0x11: // Sound mode 1 length/wave pattern duty
-
+            gb->apu.NR11 = value;
             break;
         case 0x12: // Sound mode 1 envelope
-
+            gb->apu.NR12 = value;
             break;
         case 0x13: // Sound mode 1 frequency low
-
+            gb->apu.NR13 = value;
+            gb->apu.ch1_timer = 0;
+            gb->apu.ch1_sequence_index = 0;
             break;
         case 0x14: // Sound mode 1 frequency high
-
+            gb->apu.NR14 = value;
+            gb->apu.ch1_timer = 0;
+            gb->apu.ch1_sequence_index = 0;
             break;
         case 0x16: // Sound mode 2 length/wave pattern duty
-
+            gb->apu.NR21 = value;
             break;
         case 0x17: // Sound mode 2 envelope
-
+            gb->apu.NR22 = value;
             break;
         case 0x18: // Sound mode 2 frequency low
-
+            gb->apu.NR23 = value;
+            gb->apu.ch2_timer = 0;
+            gb->apu.ch2_sequence_index = 0;
             break;
         case 0x19: // Sound mode 2 frequency high
-
+            gb->apu.NR24 = value;
+            gb->apu.ch2_timer = 0;
+            gb->apu.ch2_sequence_index = 0;
             break;
         case 0x1A: // Sound mode 3 on/off
 
@@ -372,7 +380,6 @@ void MMU::write_byte(u16 address, u8 value) {
             // Set only bits 3-6
             u8 mask = 0b01111000;
             gb->gpu.lcd_status = (gb->gpu.lcd_status & ~mask) | (value & mask);
-            std::cout << fmt::format("Writing STAT = {0:08b}", value) << std::endl;
             } break;
         case 0x42: // Scroll Y
             gb->gpu.scroll_y = value;
@@ -392,7 +399,6 @@ void MMU::write_byte(u16 address, u8 value) {
             } break;
         case 0x47: // BG and window palette data
             gb->gpu.background_palette = value;
-            //std::cout << "Set palette: " << std::hex << (int)value << std::endl;
             break;
         case 0x48: // Object palette 0 data
             gb->gpu.sprite_palette_0 = value;
