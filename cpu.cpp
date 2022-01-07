@@ -5,6 +5,7 @@
 #include <bitset>
 #include <string>
 #include <regex>
+#include "fmt/format.h"
 
 #include "gameboy.h"
 
@@ -194,61 +195,32 @@ u8 CPU::current_opcode() {
 }
 
 void CPU::debug_print() {
-    u8 opcode = gb->mmu.read_byte(PC);
+    u8 opcode = current_opcode();
 
-    //if (opcode == 0)
-    //    return;
+    std::string opcode_name = opcode_names[opcode];
+    if (opcode == 0xCB)
+        opcode_name = opcode_names_cb[opcode];
+    
+    if (opcode_name.find("r8") != std::string::npos) {
+        int value = gb->mmu.read_byte(PC + 1);
 
-    // Set up the print formatting
-    std::cout << std::left << std::uppercase;
-    //std::cout << std::dec << std::setw(4) << counter << " ";
-    std::cout << std::hex;
-
-    // Print the 16 bit program counter
-    std::cout << std::setw(4) << PC << " ";
-
-    // Print the 8 bit opcode and opcode name, distinguish between regular and CB prefix
-    if (opcode == 0xCB) {
-        u8 cb_opcode = gb->mmu.read_byte(PC + 1);
-        std::cout << std::setw(2) << (int)cb_opcode << " ";
-        std::cout << std::setw(11) << opcode_names_cb[cb_opcode] << " ";
-    } else {
-        std::cout << std::setw(2) << (int)opcode << " ";
-
-        std::string name = opcode_names[opcode];
-        if (name.find("r8") != std::string::npos) {
-            int result = gb->mmu.read_byte(PC + 1);
-            if (result >= 128)
-                result -= 256;
-            
-            name.replace(name.find("r8"), 2, std::to_string(result));
-        } else if (name.find("(a8)") != std::string::npos) {
-            //int result = gb->mmu.read_byte(0xFF00 + gb->mmu.read_byte(PC + 1));
-            //std::cout << "a8=" << (int)gb->mmu.read_byte(PC + 1) << "Value at (a8)=" << result << std::endl;
-            //name.replace(name.find("r8"), 2, std::to_string(result));
-        }
-
-        std::cout << std::setw(11) << name << " ";
+        // r8 is a two's complement signed value
+        if (value >= 128)
+            value -= 256;
+        
+        opcode_name.replace(opcode_name.find("r8"), 2, std::to_string(value));
+    } else if (opcode_name.find("(a8)") != std::string::npos) {
+        int value = 0xFF00 | gb->mmu.read_byte(PC + 1);
+        opcode_name.replace(opcode_name.find("(a8)"), 4, fmt::format("{0:04X}", value));
     }
 
-    // if opcode name contaisn r8, replace r8 by decimal number?
+    std::string text = fmt::format("{0:04X} {1:02X} {2:11} AF={3:04X} BC={4:04X} DE={5:04X} HL={6:04X} SP={7:04X} F={8:04b} LY={9:02X} c={10}", 
+        PC, opcode, opcode_name,
+        AF.get(), BC.get(), DE.get(), HL.get(),
+        SP, F >> 4,
+        gb->gpu.current_line, elapsed_cycles);
 
-    // Print the 16 bit registers
-    std::cout << "AF=" << std::setw(4) << AF.get() << " ";
-    std::cout << "BC=" << std::setw(4) << BC.get() << " ";
-    std::cout << "DE=" << std::setw(4) << DE.get() << " ";
-    std::cout << "HL=" << std::setw(4) << HL.get() << " ";
-
-    // Print the 16 bit stack pointer
-    std::cout << "SP=" << std::setw(4) << SP << " ";
-
-    // Print the flags (bits 4-7 of register F)
-    std::cout << "F=" << get_zero() << get_subtract() << get_half_carry() << get_carry() << " ";
-
-    // Print the GPU line and cycles
-    std::cout << std::hex << "LY=" << (int)gb->gpu.current_line << " ";
-    std::cout << std::dec << "c=" << (int)elapsed_cycles;
-    std::cout << std::endl;
+    std::cout << text << std::endl;
 }
 
 void CPU::handle_interrupts() {
@@ -478,19 +450,8 @@ void CPU::execute_opcode() {
     int result = 0;
     int a = 0;
 
-    tracking = true;
-
-    if (!tracking && PC == 0x1234) {
-        tracker++;
-        //gb->gpu.dump_vram();
-    }
-
-    //if (opcode == 0xE0)
-    //    debug_printing = true;
-
     if (gb->debug_mode) {
         debug_print();
-        //debug_printing = false;
     }
 
     elapsed_cycles = 0;
@@ -708,7 +669,7 @@ void CPU::execute_opcode() {
     case 1: // Rows 4-7: LD instructions and HALT
         if (z == 6 && y == 6) { // HALT
             halted = true;
-            std::cout << "halting! ime=" << interrupt_master_enable << std::endl;
+            //std::cout << "halting! ime=" << interrupt_master_enable << std::endl;
         } else // LD r[y], r[z]
             if (y == 6)
                 gb->mmu.write_byte(HL.get(), *r[z]);
