@@ -28,6 +28,7 @@ public:
     int ram_banks;
     Destination::Type destination;
 
+    std::vector<u8> rom;
     std::vector<u8> rom_0, rom_1;
 };
 

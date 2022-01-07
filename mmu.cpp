@@ -24,7 +24,9 @@ const u8 bios[0x100] = {
     0xF5, 0x06, 0x19, 0x78, 0x86, 0x23, 0x05, 0x20, 0xFB, 0x86, 0x20, 0xFE, 0x3E, 0x01, 0xE0, 0x50
 };
 
-MMU::MMU(GameBoy* gb, const Cartridge& cartridge) : gb(gb), rom_0(cartridge.rom_0), rom_1(cartridge.rom_1) {
+MMU::MMU(GameBoy* gb) : gb(gb) {
+    current_rom_bank = 0x01;
+    
     vram.resize(VRAM_SIZE);
     eram.resize(ERAM_SIZE);
     wram.resize(WRAM_SIZE);
@@ -62,14 +64,14 @@ u8 MMU::read_byte(u16 address) {
             if (address < 0x100)
                 result = bios[address];
             else
-                result = rom_0[address];
+                result = gb->cartridge.rom[address];
         } else
-            result = rom_0[address];
+            result = gb->cartridge.rom[address];
 
         // Uncomment to skip the bios
         //result = rom_0[address];
     } else if (address < 0x8000)
-        result = rom_1[address & 0x3FFF];
+        result = gb->cartridge.rom[(address & 0x3FFF) + current_rom_bank * 0x4000];
     else if (address < 0xA000)
         result = vram[address & 0x1FFF];
     else if (address < 0xC000)
@@ -191,7 +193,8 @@ u8 MMU::read_byte(u16 address) {
             result = gb->gpu.get_lcd_byte();
             break;
         case 0x41: // LCD Status
-
+            gb->gpu.lcd_status = (gb->gpu.lcd_status & ~0b11) | gb->gpu.mode;
+            result = gb->gpu.lcd_status;
             break;
         case 0x42: // Scroll Y
             result = gb->gpu.scroll_y;
@@ -203,7 +206,7 @@ u8 MMU::read_byte(u16 address) {
             result = gb->gpu.current_line;
             break;
         case 0x45: // LY compare
-
+            result = gb->gpu.ly_compare;
             break;
         case 0x46: // DMA transfer start address
 
@@ -236,15 +239,24 @@ u8 MMU::read_byte(u16 address) {
 }
 
 void MMU::write_byte(u16 address, u8 value) {
-    if (address < 0x4000)
-        rom_0[address] = value;
-    else if (address < 0x8000)
-        rom_1[address & 0x3FFF] = value;
-    else if (address < 0xA000) {
+    if (address < 0x2000) {
+        //std::cout << fmt::format("RAM Enable write @ {0:04X}: {1:04X}", address, value) << std::endl;
+    } else if (address < 0x4000) {
+        //std::cout << fmt::format("ROM Bank Number write @ {0:04X}: {1:04X}", address, value) << std::endl;
+        // Lower 5 bits of ROM bank number
+        current_rom_bank = value & 0b00011111;
+        
+        //rom_0[address] = value;
+    } else if (address < 0x6000) {
+        // Upper 2 bits of ROM bank number
+        current_rom_bank = (value << 5) | current_rom_bank;
+    } else if (address < 0x8000) {
+        // Banking mode select
+        //std::cout << fmt::format("Banking mode select write @ {0:04X}: {1:04X}", address, value) << std::endl;
+    } else if (address < 0xA000) {
         vram[address & 0x1FFF] = value;
         if (address < 0x9800) {
             gb->gpu.update_tile(address, value);
-            //std::cout << fmt::format("updating tile @ {0:x}: {1:x}", address, value) << std::endl;
         }
     } else if (address < 0xC000)
         eram[address & 0x1FFF] = value;
@@ -356,9 +368,12 @@ void MMU::write_byte(u16 address, u8 value) {
         case 0x40: // LCD Control
             gb->gpu.set_lcd_byte(value);
             break;
-        case 0x41: // LCD Status
-
-            break;
+        case 0x41: { // LCD Status
+            // Set only bits 3-6
+            u8 mask = 0b01111000;
+            gb->gpu.lcd_status = (gb->gpu.lcd_status & ~mask) | (value & mask);
+            std::cout << fmt::format("Writing STAT = {0:08b}", value) << std::endl;
+            } break;
         case 0x42: // Scroll Y
             gb->gpu.scroll_y = value;
             break;
@@ -366,13 +381,14 @@ void MMU::write_byte(u16 address, u8 value) {
             gb->gpu.scroll_x = value;
             break;
         case 0x45: // LY compare
-
+            gb->gpu.ly_compare = value;
             break;
-        case 0x46: {// DMA transfer start address
+        case 0x46: { // DMA transfer start address
             u16 start_addr = (value << 8);
 
             for (int i = 0; i < 0x9F; i++)
                 write_byte(0xFE00 + i, read_byte(start_addr + i));
+
             } break;
         case 0x47: // BG and window palette data
             gb->gpu.background_palette = value;
