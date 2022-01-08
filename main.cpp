@@ -20,8 +20,8 @@ int main(int argc, char* args[])
 {
     //GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\cpu_instrs.gb");
     //GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\01-special.gb");
-    //GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\Tetris (World) (Rev A).gb");
-    GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\Super Mario Land (World).gb");
+    GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\Tetris (World) (Rev A).gb");
+    //GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\Super Mario Land (World).gb");
     //GameBoy gb("C:\\Users\\ruben\\Documents\\GitHub\\gameboy\\roms\\Dr. Mario (World).gb");
     //GameBoy gb("roms/Dr. Mario (World).gb");
     //GameBoy gb("C:/Users/Ruben/Documents/ROMs/GameBoy/cpu_instrs/cpu_instrs.gb");
@@ -54,14 +54,16 @@ int main(int argc, char* args[])
 
     SDL_AudioSpec want, have;
     SDL_zero(want);
-    want.freq = 48000;
+    want.freq = APU_SAMPLE_RATE;
     want.format = AUDIO_F32;
     want.channels = 1;
-    want.samples = 256;
-    want.callback = NULL;
+    want.samples = APU_BUFFER_SIZE;
+    want.callback = NULL; // Don't need since we queue audio ourselves
     SDL_AudioDeviceID dev = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
     if (dev == 0)
         std::cout << "Could not open audio device: " << SDL_GetError() << std::endl;
+    
+    // Audio is initially paused, so unpause it
     SDL_PauseAudioDevice(dev, 0);
 
     //SDL_RenderSetLogicalSize(renderer, SCREEN_W, SCREEN_H);
@@ -112,7 +114,17 @@ int main(int argc, char* args[])
         gb.buttons[Button::A]      = keys[SDL_SCANCODE_O];
         gb.buttons[Button::B]      = keys[SDL_SCANCODE_P];
 
-        redraw = false;
+        /*
+        The gameboy loop is structured as follows:
+
+        1.  Wait until any queued audio has finished playing
+        2.  While screen is not ready to redraw:
+                Cycle the gameboy
+                Push audio into the queue for playback if there is a new buffer
+            
+        3.  Redraw the screen
+        4.  Wait any additional time to regulate to 60 FPS
+        */
 
         // Wait until the audio queue is finished playing
         int queued = SDL_GetQueuedAudioSize(dev);
@@ -120,6 +132,7 @@ int main(int argc, char* args[])
             queued = SDL_GetQueuedAudioSize(dev);
         }
 
+        redraw = false;
         bool sent_for_playback = false;
 
         // Cycle the gameboy until it wants us to redraw the screen
@@ -133,8 +146,8 @@ int main(int argc, char* args[])
                 sent_for_playback = true;
             }
 
+            // Check if a new audio buffer has started to be filled
             if (gb.apu.sample_queue_index == 1) {
-                // A new queue has started to fill
                 sent_for_playback = false;
             }
 
@@ -169,7 +182,6 @@ int main(int argc, char* args[])
         SDL_Rect dst = {0, 0, SCREEN_W, SCREEN_H};
         SDL_RenderCopy(renderer, texture, NULL, &dst);
 
-        //SDL_Rect dst2 = {SCREEN_W + 20, 150, 16*8, 24*8};
         SDL_DestroyTexture(texture);
 
         // Debug info rendering

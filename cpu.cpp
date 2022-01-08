@@ -188,6 +188,12 @@ u16 CPU::pop_from_stack() {
     return value;
 }
 
+void CPU::handle_interrupt(u16 handler_address) {
+    push_to_stack(PC);
+    PC = handler_address;
+    cycles += 12;
+}
+
 u8 CPU::current_opcode() {
     return gb->mmu.read_byte(PC);
 }
@@ -822,7 +828,4 @@ void CPU::execute_opcode() {
         elapsed_cycles += 4;
         cycles += elapsed_cycles;
     }
-
-    //update_timers();
-    //handle_interrupts();
 }

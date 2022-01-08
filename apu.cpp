@@ -18,7 +18,7 @@ APU::APU(GameBoy* gb) : gb(gb) {
 
     sample_timer = 0;
     sample_queue_index = 0;
-    sample_queue.resize(SAMPLE_BUFFER_SIZE);
+    sample_queue.resize(APU_BUFFER_SIZE);
 
     sequencer_clock = 0;
     sequencer_step = 0;
@@ -135,6 +135,8 @@ void APU::write_byte(u16 address, u8 value) {
             break;
         case 0x13: // Channel 1 frequency low
             NR13 = value;
+            // Reset the timer and position in waveform, because this
+            // is probably a new sound being played
             ch1_timer = 0;
             ch1_sequence_index = 0;
             break;
@@ -217,6 +219,7 @@ void APU::write_byte(u16 address, u8 value) {
 }
 
 void APU::cycle() {
+    // The frequency value from the registers, not the actual frequency
     int ch1_freq = ((NR14 & 0b111) << 8) | NR13;
     int ch2_freq = ((NR24 & 0b111) << 8) | NR23;
 
@@ -261,12 +264,17 @@ void APU::cycle() {
     if (sequencer_step == 7) {
         ch1_envelope_counter--;
         if (ch1_envelope_counter == 0) {
+            // If volume should be increased and we are not at max yet
             if (GET_BIT(NR12, 3) && ch1_volume < 15) {
                 ch1_volume++;
             }
+            // If volume should be decreased and we are not at zero yet
             else if (GET_BIT(NR12, 3)==0 && ch1_volume > 0) {
                 ch1_volume--;
             }
+
+            // Reset the envelope counter
+            ch1_envelope_counter = NR11 & 0b111;
         }
 
         ch2_envelope_counter--;
@@ -277,6 +285,8 @@ void APU::cycle() {
             else if (GET_BIT(NR22, 3)==0 && ch2_volume > 0) {
                 ch2_volume--;
             }
+
+            ch2_envelope_counter = NR21 & 0b111;
         }
     }
     // Update sweep every 4th sequencer step -> 128 Hz
@@ -320,7 +330,7 @@ void APU::cycle() {
 
         // The queue is full, go to the beginning again
         // At this point the queue can be sent for playback
-        if (sample_queue_index == SAMPLE_BUFFER_SIZE)
+        if (sample_queue_index == APU_BUFFER_SIZE)
             sample_queue_index = 0;
     }
 

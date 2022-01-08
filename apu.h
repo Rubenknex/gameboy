@@ -45,7 +45,8 @@ On the screen: 256 samples at 48 kHz
 */
 
 #define DOWNSAMPLE_RATE 87
-#define SAMPLE_BUFFER_SIZE 1024
+#define APU_SAMPLE_RATE 48000
+#define APU_BUFFER_SIZE 1024
 
 class GameBoy;
 

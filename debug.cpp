@@ -110,7 +110,7 @@ void Debug::draw(int x, int y) {
     SDL_FreeSurface(screen);
 
     // Render the gameboy texture onto the screen
-    dst = {x + 20, 400, 256, 32};
+    dst = {x + 20, 450, 512, 32};
     SDL_RenderCopy(m_renderer, texture, NULL, &dst);
     SDL_DestroyTexture(texture);
 }

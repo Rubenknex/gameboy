@@ -137,14 +137,11 @@ void GameBoy::update_timers() {
 void GameBoy::handle_interrupts() {
     u8 pending = interrupt_enable & interrupt_flags;
 
-    if (pending) {
+    if (pending)
         cpu.halted = false;
-        //std::cout << "halted=false!" << std::endl;
-    }
 
-    if (!interrupt_master_enable) {
+    if (!interrupt_master_enable)
         return;
-    }
 
     u8 handlers[5] = {0x40, 0x48, 0x50, 0x58, 0x60};
 
@@ -158,10 +155,7 @@ void GameBoy::handle_interrupts() {
             interrupt_flags &= ~flag;
             interrupt_master_enable = false;
 
-            // Handle the interrupt
-            cpu.push_to_stack(cpu.PC);
-            cpu.PC = handlers[i];
-            cpu.cycles += 12;
+            cpu.handle_interrupt(handlers[i]);
 
             break;
         }
@@ -170,7 +164,7 @@ void GameBoy::handle_interrupts() {
 
 void GameBoy::cycle() {
     cpu.execute_opcode();
-    
+
     update_timers();
     handle_interrupts();
 
