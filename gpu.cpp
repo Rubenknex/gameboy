@@ -52,6 +52,103 @@ GPU::GPU(GameBoy* gb) : gb(gb), mode(GPUMode::HBlank), cycles(0) {
     }
 }
 
+u8 GPU::read_byte(u16 address) {
+    u8 result = 0;
+
+    switch (address & 0xFF) {
+        case 0x40: // LCD Control
+            // Construct the LCD control byte from the gpu parameters
+            result = get_lcd_byte();
+            break;
+        case 0x41: // LCD Status
+            lcd_status = (lcd_status & ~0b11) | mode;
+            result = lcd_status;
+            break;
+        case 0x42: // Scroll Y
+            result = scroll_y;
+            break;
+        case 0x43: // Scroll X
+            result = scroll_x;
+            break;
+        case 0x44: // Y Coord
+            result = current_line;
+            break;
+        case 0x45: // LY compare
+            result = ly_compare;
+            break;
+        case 0x46: // DMA transfer start address
+
+            break;
+        case 0x47: // BG and window palette data
+            result = background_palette;
+            break;
+        case 0x48: // Object palette 0 data
+            result = sprite_palette_0;
+            break;
+        case 0x49: // Object palette 1 data
+            result = sprite_palette_1;
+            break;
+        case 0x4A: // Window Y
+
+            break;
+        case 0x4B: // Window X
+
+            break;
+        default: {
+            result = 0;
+        }
+    }
+
+    return result;
+}
+
+void GPU::write_byte(u16 address, u8 value) {
+    switch (address & 0xFF) {
+    case 0x40: // LCD Control
+        set_lcd_byte(value);
+        break;
+    case 0x41: { // LCD Status
+        // Set only bits 3-6
+        u8 mask = 0b01111000;
+        lcd_status = (lcd_status & ~mask) | (value & mask);
+        } break;
+    case 0x42: // Scroll Y
+        scroll_y = value;
+        break;
+    case 0x43: // Scroll X
+        scroll_x = value;
+        break;
+    case 0x45: // LY compare
+        ly_compare = value;
+        break;
+    case 0x46: { // DMA transfer start address
+        u16 start_addr = (value << 8);
+
+        for (int i = 0; i < 0x9F; i++)
+            gb->mmu.write_byte(0xFE00 + i, gb->mmu.read_byte(start_addr + i));
+
+        } break;
+    case 0x47: // BG and window palette data
+        background_palette = value;
+        break;
+    case 0x48: // Object palette 0 data
+        sprite_palette_0 = value;
+        break;
+    case 0x49: // Object palette 1 data
+        sprite_palette_1 = value;
+        break;
+    case 0x4A: // Window Y
+
+        break;
+    case 0x4B: // Window X
+
+        break;
+    case 0x50: // Disable BIOS
+        gb->mmu.disable_bios = 0x1;
+        break;
+    }
+}
+
 void GPU::cycle() {
     redraw = false;
 

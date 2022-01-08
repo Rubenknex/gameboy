@@ -21,6 +21,9 @@ class GPU {
 public:
     GPU(GameBoy* gb);
 
+    u8 read_byte(u16 address);
+    void write_byte(u16 address, u8 value);
+
     void cycle();
     void reset();
     void update_tile(u16 address, u8 value);

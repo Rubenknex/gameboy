@@ -126,50 +126,7 @@ u8 MMU::read_byte(u16 address) {
     } else if (address < 0xFF40) {
         result = gb->apu.read_byte(address);
     } else if (address < 0xFF4C) {
-        // TODO: Put this in the GPU class
-        switch (address & 0xFF) {
-            case 0x40: // LCD Control
-                // Construct the LCD control byte from the gpu parameters
-                result = gb->gpu.get_lcd_byte();
-                break;
-            case 0x41: // LCD Status
-                gb->gpu.lcd_status = (gb->gpu.lcd_status & ~0b11) | gb->gpu.mode;
-                result = gb->gpu.lcd_status;
-                break;
-            case 0x42: // Scroll Y
-                result = gb->gpu.scroll_y;
-                break;
-            case 0x43: // Scroll X
-                result = gb->gpu.scroll_x;
-                break;
-            case 0x44: // Y Coord
-                result = gb->gpu.current_line;
-                break;
-            case 0x45: // LY compare
-                result = gb->gpu.ly_compare;
-                break;
-            case 0x46: // DMA transfer start address
-
-                break;
-            case 0x47: // BG and window palette data
-                result = gb->gpu.background_palette;
-                break;
-            case 0x48: // Object palette 0 data
-                result = gb->gpu.sprite_palette_0;
-                break;
-            case 0x49: // Object palette 1 data
-                result = gb->gpu.sprite_palette_1;
-                break;
-            case 0x4A: // Window Y
-
-                break;
-            case 0x4B: // Window X
-
-                break;
-            default: {
-                result = 0;
-            }
-        }
+        result = gb->gpu.read_byte(address);
     } else if (address < 0xFFFF) {
         result = hram[address & 0x7F];
     } else if (address == 0xFFFF)
@@ -242,51 +199,10 @@ void MMU::write_byte(u16 address, u8 value) {
         }
     } else if (address < 0xFF40) {
         gb->apu.write_byte(address, value);
-    } else if (address < 0xFF51) {
-        switch (address & 0xFF) {
-        case 0x40: // LCD Control
-            gb->gpu.set_lcd_byte(value);
-            break;
-        case 0x41: { // LCD Status
-            // Set only bits 3-6
-            u8 mask = 0b01111000;
-            gb->gpu.lcd_status = (gb->gpu.lcd_status & ~mask) | (value & mask);
-            } break;
-        case 0x42: // Scroll Y
-            gb->gpu.scroll_y = value;
-            break;
-        case 0x43: // Scroll X
-            gb->gpu.scroll_x = value;
-            break;
-        case 0x45: // LY compare
-            gb->gpu.ly_compare = value;
-            break;
-        case 0x46: { // DMA transfer start address
-            u16 start_addr = (value << 8);
-
-            for (int i = 0; i < 0x9F; i++)
-                write_byte(0xFE00 + i, read_byte(start_addr + i));
-
-            } break;
-        case 0x47: // BG and window palette data
-            gb->gpu.background_palette = value;
-            break;
-        case 0x48: // Object palette 0 data
-            gb->gpu.sprite_palette_0 = value;
-            break;
-        case 0x49: // Object palette 1 data
-            gb->gpu.sprite_palette_1 = value;
-            break;
-        case 0x4A: // Window Y
-
-            break;
-        case 0x4B: // Window X
-
-            break;
-        case 0x50: // Disable BIOS
-            disable_bios = 0x1;
-            break;
-        }
+    } else if (address < 0xFF4C) {
+        gb->gpu.write_byte(address, value);
+    } else if (address == 0xFF50) {
+        disable_bios = 0x1;
     } else if (address < 0xFFFF) {
         hram[address & 0x7F] = value;
         //std::cout << std::hex << "Writing HRAM[" << address << "]= " << (int)value << std::endl;
