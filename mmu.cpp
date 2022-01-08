@@ -83,7 +83,7 @@ u8 MMU::read_byte(u16 address) {
     else if (address < 0xFF00) {
         if (address < 0xFEA0)
             result = oam[address & 0xFF];
-    } else if (address < 0xFF80)
+    } else if (address < 0xFF10) {
         switch (address & 0xFF) {
         case 0x00: { // Joypad port
             // Construct the joypad register byte
@@ -122,115 +122,55 @@ u8 MMU::read_byte(u16 address) {
         case 0x0F: // Interrupt flags
             result = interrupt_flags;
             break;
-        case 0x10: // Sound mode 1 sweep
-            result = gb->apu.NR10;
-            break;
-        case 0x11: // Sound mode 1 length/wave pattern duty
-            result = gb->apu.NR11;
-            break;
-        case 0x12: // Sound mode 1 envelope
-            result = gb->apu.NR12;
-            break;
-        case 0x13: // Sound mode 1 frequency low
-            result = 0;
-            break;
-        case 0x14: // Sound mode 1 frequency high
-            result = gb->apu.NR14;
-            break;
-        case 0x16: // Sound mode 2 length/wave pattern duty
-            result = gb->apu.NR21;
-            break;
-        case 0x17: // Sound mode 2 envelope
-            result = gb->apu.NR22;
-            break;
-        case 0x18: // Sound mode 2 frequency low
-            result = 0;
-            break;
-        case 0x19: // Sound mode 2 frequency high
-            result = gb->apu.NR24;
-            break;
-        case 0x1A: // Sound mode 3 on/off
-            result = gb->apu.NR30;
-            break;
-        case 0x1B: // Sound mode 3 length
-            result = 0;
-            break;
-        case 0x1C: // Sound mode 3 output level
-            result = gb->apu.NR32;
-            break;
-        case 0x1D: // Sound mode 3 frequency low
-            result = 0;
-            break;
-        case 0x1E: // Sound mode 3 frequency high
-            result = gb->apu.NR34;
-            break;
-        case 0x20: // Sound mode 4 length
-            result = 0;
-            break;
-        case 0x21: // Sound mode 4 envelope
-            result = gb->apu.NR42;
-            break;
-        case 0x22: // Sound mode 4 polynomial counter
-            result = gb->apu.NR43;
-            break;
-        case 0x23: // Sound mode 4 counter/consecutive
-            result = gb->apu.NR44;
-            break;
-        case 0x24: // Channel control
-            result = gb->apu.NR50;
-            break;
-        case 0x25: // Sound output terminal
-            result = gb->apu.NR51;
-            break;
-        case 0x26: // Sound on/off
-            result = gb->apu.NR52;
-            break;
-        case 0x30: // Waveform storage5
-
-            break;
-        case 0x40: // LCD Control
-            // Construct the LCD control byte from the gpu parameters
-            result = gb->gpu.get_lcd_byte();
-            break;
-        case 0x41: // LCD Status
-            gb->gpu.lcd_status = (gb->gpu.lcd_status & ~0b11) | gb->gpu.mode;
-            result = gb->gpu.lcd_status;
-            break;
-        case 0x42: // Scroll Y
-            result = gb->gpu.scroll_y;
-            break;
-        case 0x43: // Scroll X
-            result = gb->gpu.scroll_x;
-            break;
-        case 0x44: // Y Coord
-            result = gb->gpu.current_line;
-            break;
-        case 0x45: // LY compare
-            result = gb->gpu.ly_compare;
-            break;
-        case 0x46: // DMA transfer start address
-
-            break;
-        case 0x47: // BG and window palette data
-            result = gb->gpu.background_palette;
-            break;
-        case 0x48: // Object palette 0 data
-            result = gb->gpu.sprite_palette_0;
-            break;
-        case 0x49: // Object palette 1 data
-            result = gb->gpu.sprite_palette_1;
-            break;
-        case 0x4A: // Window Y
-
-            break;
-        case 0x4B: // Window X
-
-            break;
-        default: {
-            result = 0;
         }
+    } else if (address < 0xFF40) {
+        result = gb->apu.read_byte(address);
+    } else if (address < 0xFF4C) {
+        // TODO: Put this in the GPU class
+        switch (address & 0xFF) {
+            case 0x40: // LCD Control
+                // Construct the LCD control byte from the gpu parameters
+                result = gb->gpu.get_lcd_byte();
+                break;
+            case 0x41: // LCD Status
+                gb->gpu.lcd_status = (gb->gpu.lcd_status & ~0b11) | gb->gpu.mode;
+                result = gb->gpu.lcd_status;
+                break;
+            case 0x42: // Scroll Y
+                result = gb->gpu.scroll_y;
+                break;
+            case 0x43: // Scroll X
+                result = gb->gpu.scroll_x;
+                break;
+            case 0x44: // Y Coord
+                result = gb->gpu.current_line;
+                break;
+            case 0x45: // LY compare
+                result = gb->gpu.ly_compare;
+                break;
+            case 0x46: // DMA transfer start address
+
+                break;
+            case 0x47: // BG and window palette data
+                result = gb->gpu.background_palette;
+                break;
+            case 0x48: // Object palette 0 data
+                result = gb->gpu.sprite_palette_0;
+                break;
+            case 0x49: // Object palette 1 data
+                result = gb->gpu.sprite_palette_1;
+                break;
+            case 0x4A: // Window Y
+
+                break;
+            case 0x4B: // Window X
+
+                break;
+            default: {
+                result = 0;
+            }
         }
-    else if (address < 0xFFFF) {
+    } else if (address < 0xFFFF) {
         result = hram[address & 0x7F];
     } else if (address == 0xFFFF)
         result = interrupt_enable;
@@ -258,19 +198,19 @@ void MMU::write_byte(u16 address, u8 value) {
         if (address < 0x9800) {
             gb->gpu.update_tile(address, value);
         }
-    } else if (address < 0xC000)
+    } else if (address < 0xC000) {
         eram[address & 0x1FFF] = value;
     //else if (address < 0xE000)
     //    wram[address & 0x1FFF] = value;
-    else if (address < 0xFE00)
+    } else if (address < 0xFE00) {
         wram[address & 0x1FFF] = value;
-    else if (address < 0xFF00) {
+    } else if (address < 0xFF00) {
         // Graphics sprite information
         if (address < 0xFEA0) {
             oam[address & 0xFF] = value;
             gb->gpu.update_object(address - 0xFE00, value);
         }
-    } else if (address < 0xFF80)
+    } else if (address < 0xFF10) {
         switch (address & 0xFF) {
         case 0x00: // Joypad port
             select_button    = (value & 0x20) != 0;
@@ -299,99 +239,11 @@ void MMU::write_byte(u16 address, u8 value) {
         case 0x0F: // Interrupt flags
             interrupt_flags = value;
             break;
-        case 0x10: // Sound mode 1 sweep
-            gb->apu.NR10 = value;
-            break;
-        case 0x11: {// Sound mode 1 length/wave pattern duty
-            gb->apu.NR11 = value;
-            int length_cycles = (64 - (value & 0b11111)) * (16376);
-            gb->apu.ch1_length_counter = length_cycles;
-            } break;
-        case 0x12: // Sound mode 1 envelope
-            gb->apu.NR12 = value;
-            gb->apu.ch1_volume = (value & 0b11110000) >> 4;
-            gb->apu.ch1_envelope_counter = value & 0b111;
-            break;
-        case 0x13: // Sound mode 1 frequency low
-            gb->apu.NR13 = value;
-            gb->apu.ch1_timer = 0;
-            gb->apu.ch1_sequence_index = 0;
-            break;
-        case 0x14: // Sound mode 1 frequency high
-            gb->apu.NR14 = value;
-            gb->apu.ch1_timer = 0;
-            gb->apu.ch1_sequence_index = 0;
-            if (GET_BIT(value, 7)) {
-                // Restart sound
-                gb->apu.ch1_length_counter = (64 - (gb->apu.NR11 & 0b11111)) * (16376);
-                gb->apu.ch1_enabled = true;
-            }
-            break;
-        case 0x16: { // Sound mode 2 length/wave pattern duty
-            gb->apu.NR21 = value;
-            int length_cycles = (64 - (value & 0b11111)) * (16376);
-            gb->apu.ch2_length_counter = length_cycles;
-            } break;
-        case 0x17: // Sound mode 2 envelope
-            gb->apu.NR22 = value;
-            gb->apu.ch2_volume = (value & 0b11110000) >> 4;
-            gb->apu.ch2_envelope_counter = value & 0b111;
-            break;
-        case 0x18: // Sound mode 2 frequency low
-            gb->apu.NR23 = value;
-            gb->apu.ch2_timer = 0;
-            gb->apu.ch2_sequence_index = 0;
-            break;
-        case 0x19: // Sound mode 2 frequency high
-            gb->apu.NR24 = value;
-            gb->apu.ch2_timer = 0;
-            gb->apu.ch2_sequence_index = 0;
-            
-            if (GET_BIT(value, 7)) {
-                // Restart sound
-                gb->apu.ch2_length_counter = (64 - (gb->apu.NR21 & 0b11111)) * (16376);
-                gb->apu.ch2_enabled = true;
-            }
-            break;
-        case 0x1A: // Sound mode 3 on/off
-
-            break;
-        case 0x1B: // Sound mode 3 length
-
-            break;
-        case 0x1C: // Sound mode 3 output level
-
-            break;
-        case 0x1D: // Sound mode 3 frequency low
-
-            break;
-        case 0x1E: // Sound mode 3 frequency high
-
-            break;
-        case 0x20: // Sound mode 4 length
-
-            break;
-        case 0x21: // Sound mode 4 envelope
-
-            break;
-        case 0x22: // Sound mode 4 polynomial counter
-
-            break;
-        case 0x23: // Sound mode 4 counter/consecutive
-
-            break;
-        case 0x24: // Channel control
-
-            break;
-        case 0x25: // Sound output terminal
-
-            break;
-        case 0x26: // Sound on/off
-
-            break;
-        case 0x30: // Waveform storage
-
-            break;
+        }
+    } else if (address < 0xFF40) {
+        gb->apu.write_byte(address, value);
+    } else if (address < 0xFF51) {
+        switch (address & 0xFF) {
         case 0x40: // LCD Control
             gb->gpu.set_lcd_byte(value);
             break;
@@ -435,7 +287,7 @@ void MMU::write_byte(u16 address, u8 value) {
             disable_bios = 0x1;
             break;
         }
-    else if (address < 0xFFFF) {
+    } else if (address < 0xFFFF) {
         hram[address & 0x7F] = value;
         //std::cout << std::hex << "Writing HRAM[" << address << "]= " << (int)value << std::endl;
     } else if (address == 0xFFFF)
