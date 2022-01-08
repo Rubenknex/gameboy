@@ -32,24 +32,6 @@ MMU::MMU(GameBoy* gb) : gb(gb) {
     wram.resize(WRAM_SIZE);
     oam.resize(OAM_SIZE);
     hram.resize(HRAM_SIZE);
-
-    select_button = false;
-    select_direction = false;
-    down_or_start = true;
-    up_or_select = true;
-    left_or_b = true;
-    right_or_a = true;
-
-    divide_register = 0;
-    raw_timer_counter = 0;
-    timer_counter = 0;
-    timer_modulo = 0;
-    timer_control = 0;
-
-    disable_bios = 0;
-
-    interrupt_flags = 0;
-    interrupt_enable = 0;
 }
 
 MMU::~MMU() {
@@ -60,7 +42,7 @@ u8 MMU::read_byte(u16 address) {
     u8 result = 0;
 
     if (address < 0x4000) {
-        if (disable_bios == 0) {
+        if (gb->disable_bios == 0) {
             if (address < 0x100)
                 result = bios[address];
             else
@@ -84,45 +66,7 @@ u8 MMU::read_byte(u16 address) {
         if (address < 0xFEA0)
             result = oam[address & 0xFF];
     } else if (address < 0xFF10) {
-        switch (address & 0xFF) {
-        case 0x00: { // Joypad port
-            // Construct the joypad register byte
-            // the selection bits are swapped for some reason
-            if (select_direction)
-                result = (!gb->buttons[Button::Start]  ? 0x8 : 0) |
-                         (!gb->buttons[Button::Select] ? 0x4 : 0) |
-                         (!gb->buttons[Button::A]      ? 0x2 : 0) |
-                         (!gb->buttons[Button::B]      ? 0x1 : 0);
-            else if (select_button)
-                result = (!gb->buttons[Button::Down]   ? 0x8 : 0) |
-                         (!gb->buttons[Button::Up]     ? 0x4 : 0) |
-                         (!gb->buttons[Button::Left]   ? 0x2 : 0) |
-                         (!gb->buttons[Button::Right]  ? 0x1 : 0);
-            else
-                return 0;
-            } break;
-        case 0x01: // Serial IO data
-
-            break;
-        case 0x02: // Serial IO control
-
-            break;
-        case 0x04: // Divider
-            result = divide_register;
-            break;
-        case 0x05: // Timer counter
-            result = timer_counter;
-            break;
-        case 0x06: // Timer modulo
-            result = timer_modulo;
-            break;
-        case 0x07: // Timer control
-            result = timer_control;
-            break;
-        case 0x0F: // Interrupt flags
-            result = interrupt_flags;
-            break;
-        }
+        result = gb->read_byte(address);
     } else if (address < 0xFF40) {
         result = gb->apu.read_byte(address);
     } else if (address < 0xFF4C) {
@@ -130,7 +74,7 @@ u8 MMU::read_byte(u16 address) {
     } else if (address < 0xFFFF) {
         result = hram[address & 0x7F];
     } else if (address == 0xFFFF)
-        result = interrupt_enable;
+        result = gb->interrupt_enable;
 
     return result;
 }
@@ -168,46 +112,18 @@ void MMU::write_byte(u16 address, u8 value) {
             gb->gpu.update_object(address - 0xFE00, value);
         }
     } else if (address < 0xFF10) {
-        switch (address & 0xFF) {
-        case 0x00: // Joypad port
-            select_button    = (value & 0x20) != 0;
-            select_direction = (value & 0x10) != 0;
-            break;
-        case 0x01: // Serial IO data
-
-            break;
-        case 0x02: // Serial IO control
-
-            break;
-        case 0x04: // Divider
-            divide_register = 0;
-            break;
-        case 0x05: // Timer counter
-            timer_counter = value;
-            break;
-        case 0x06: // Timer modulo
-            timer_modulo = value;
-            //std::cout << std::hex << "setting timer_modulo=" << (int)timer_modulo << std::endl;
-            break;
-        case 0x07: // Timer control
-            timer_control = value;
-            //std::cout << std::hex << "setting timer_control=" << (int)timer_control << std::endl;
-            break;
-        case 0x0F: // Interrupt flags
-            interrupt_flags = value;
-            break;
-        }
+        gb->write_byte(address, value);
     } else if (address < 0xFF40) {
         gb->apu.write_byte(address, value);
     } else if (address < 0xFF4C) {
         gb->gpu.write_byte(address, value);
     } else if (address == 0xFF50) {
-        disable_bios = 0x1;
+        gb->disable_bios = 0x1;
     } else if (address < 0xFFFF) {
         hram[address & 0x7F] = value;
         //std::cout << std::hex << "Writing HRAM[" << address << "]= " << (int)value << std::endl;
     } else if (address == 0xFFFF)
-        interrupt_enable = value;
+        gb->interrupt_enable = value;
 }
 
 u16 MMU::read_word(u16 address) {

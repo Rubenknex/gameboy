@@ -143,9 +143,6 @@ void GPU::write_byte(u16 address, u8 value) {
     case 0x4B: // Window X
 
         break;
-    case 0x50: // Disable BIOS
-        gb->mmu.disable_bios = 0x1;
-        break;
     }
 }
 
@@ -170,7 +167,7 @@ void GPU::cycle() {
             // Finished drawing tiles, move to HBlank
             mode = GPUMode::HBlank;
             if (GET_BIT(lcd_status, 3))
-                    gb->mmu.interrupt_flags |= INTERRUPT_LCDC;
+                    gb->interrupt_flags |= INTERRUPT_LCDC;
 
             if (lcd_enabled)
                 render_scanline();
@@ -186,17 +183,17 @@ void GPU::cycle() {
             if (current_line == PIXELS_H - 1) {
                 mode = GPUMode::VBlank;
                 if (GET_BIT(lcd_status, 4))
-                    gb->mmu.interrupt_flags |= INTERRUPT_LCDC;
+                    gb->interrupt_flags |= INTERRUPT_LCDC;
                 redraw = true;
 
                 // Request a VBlank interrupt
-                gb->mmu.interrupt_flags |= INTERRUPT_VBLANK;
-                //std::cout << "requesting vblank interrupt, IE=" << std::hex << (int)gb->mmu.interrupt_enable << " IME=" << (int)gb->interrupt_master_enable << std::endl;
+                gb->interrupt_flags |= INTERRUPT_VBLANK;
+                //std::cout << "requesting vblank interrupt, IE=" << std::hex << (int)gb->interrupt_enable << " IME=" << (int)gb->interrupt_master_enable << std::endl;
             } else {
                 // Start rendering the next line
                 mode = GPUMode::OAM;
                 if (GET_BIT(lcd_status, 5))
-                    gb->mmu.interrupt_flags |= INTERRUPT_LCDC;
+                    gb->interrupt_flags |= INTERRUPT_LCDC;
             }
         }
         break;
@@ -211,7 +208,7 @@ void GPU::cycle() {
                 // VBlank is finished, return to line 0
                 mode = GPUMode::OAM;
                 if (GET_BIT(lcd_status, 5))
-                    gb->mmu.interrupt_flags |= INTERRUPT_LCDC;
+                    gb->interrupt_flags |= INTERRUPT_LCDC;
 
                 current_line = 0;
             }
@@ -224,7 +221,7 @@ void GPU::cycle() {
 
     // If LY=LYC interrupt is enabled and LY=LYC
     if (GET_BIT(lcd_status, 6) && GET_BIT(lcd_status, 2))
-        gb->mmu.interrupt_flags |= INTERRUPT_LCDC;
+        gb->interrupt_flags |= INTERRUPT_LCDC;
 }
 
 void GPU::reset() {

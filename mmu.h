@@ -61,25 +61,6 @@ public:
     u8 current_rom_bank;
 
     std::vector<u8> vram, eram, wram, oam, hram;
-
-    // FF00 joypad input byte
-    bool select_button;
-    bool select_direction;
-    bool down_or_start;
-    bool up_or_select;
-    bool left_or_b;
-    bool right_or_a;
-
-    u8 divide_register; // FF04, DIV
-    float raw_timer_counter;
-    u8 timer_counter; // FF05, TIMA
-    u8 timer_modulo; // FF06, TMA
-    u8 timer_control; // FF07, TAC
-
-    u8 disable_bios; // FF50
-
-    u8 interrupt_flags; // FF0F, IF
-    u8 interrupt_enable; // FFFF, IE
 };
 
 #endif

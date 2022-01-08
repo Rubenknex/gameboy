@@ -228,7 +228,7 @@ void CPU::debug_print() {
 }
 
 void CPU::handle_interrupts() {
-    u8 pending = gb->mmu.interrupt_enable & gb->mmu.interrupt_flags;
+    u8 pending = gb->interrupt_enable & gb->interrupt_flags;
 
     if (pending) {
         halted = false;
@@ -248,7 +248,7 @@ void CPU::handle_interrupts() {
         // If this interrupt is enabled and flagged
         if (pending & flag) {
             // Reset the interrupt flag
-            gb->mmu.interrupt_flags &= ~flag;
+            gb->interrupt_flags &= ~flag;
             interrupt_master_enable = false;
 
             // Handle the interrupt
@@ -263,24 +263,24 @@ void CPU::handle_interrupts() {
 
 void CPU::update_timers() {
     float timer = ((float)cycles / (float)CLOCK_FREQ) * (float)TIMER_FREQ;
-    gb->mmu.divide_register = (int)timer & 0xFF;
+    gb->divide_register = (int)timer & 0xFF;
 
     // If the timer is enabled
-    if (gb->mmu.timer_control & 0b100) {
+    if (gb->timer_control & 0b100) {
         int frequencies[4] = {4096, 262144, 65536, 16384};
-        int freq = frequencies[gb->mmu.timer_control & 0b11];
+        int freq = frequencies[gb->timer_control & 0b11];
 
-        gb->mmu.raw_timer_counter += (float)elapsed_cycles / (float)CLOCK_FREQ * (float)freq;
-        //std::cout << "timer_counter=" << (int)gb->mmu.timer_counter << std::endl;
+        gb->raw_timer_counter += (float)elapsed_cycles / (float)CLOCK_FREQ * (float)freq;
+        //std::cout << "timer_counter=" << (int)gb->timer_counter << std::endl;
         
         // If we overflow the timer
-        if ((int)gb->mmu.raw_timer_counter > 0xFF) {
+        if ((int)gb->raw_timer_counter > 0xFF) {
             //std::cout << "timer_counter overflow!" << std::endl;
-            gb->mmu.interrupt_flags |= INTERRUPT_TIMER;
-            gb->mmu.raw_timer_counter = gb->mmu.timer_modulo;
-            gb->mmu.timer_counter = gb->mmu.timer_modulo;
+            gb->interrupt_flags |= INTERRUPT_TIMER;
+            gb->raw_timer_counter = gb->timer_modulo;
+            gb->timer_counter = gb->timer_modulo;
         } else
-            gb->mmu.timer_counter = (int)gb->mmu.raw_timer_counter & 0xFF;
+            gb->timer_counter = (int)gb->raw_timer_counter & 0xFF;
     }
 }
 
