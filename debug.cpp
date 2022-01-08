@@ -38,8 +38,8 @@ void Debug::draw(int x, int y) {
     // Audio
     int ch1_freq = ((m_gb->apu.NR14 & 0b111) << 8) | m_gb->apu.NR13;
     int ch2_freq = ((m_gb->apu.NR24 & 0b111) << 8) | m_gb->apu.NR23;
-    FC_Draw(m_font, m_renderer, x + 20, 220, fmt::format("F1={} F2={} sqi={}", ch1_freq, ch2_freq, m_gb->apu.ch1_timer).c_str());
-
+    FC_Draw(m_font, m_renderer, x + 20, 220, fmt::format("F1={} F2={}", ch1_freq, ch2_freq).c_str());
+    FC_Draw(m_font, m_renderer, x + 20, 240, fmt::format("vol1={} vol2={}", m_gb->apu.ch1_volume, m_gb->apu.ch2_volume).c_str());
 
     // VRAM
     unsigned int palette[4] = {0xFFFFFFFF,0xAAAAAAFF,0x555555FF,0x000000FF};
@@ -83,24 +83,24 @@ void Debug::draw(int x, int y) {
     // Audio waveforms
     // 256 x 8 image
     std::vector<int> img;
-    img.resize(256*8);
-    std::fill(img.begin(), img.end(), palette[3]);
+    img.resize(1024*8);
+    std::fill(img.begin(), img.end(), palette[2]);
 
     // Convert the gameboy tiledata of a series of 64 values to an array
     // that we can draw on the screen
-    for (int sample = 0; sample < 256; sample++) {
-        int value = m_gb->apu.sample_queue[sample] / 32;
-        
-        img[value*256 + sample] = palette[0];
+    for (int sample = 0; sample < 1024; sample++) {
+        int value = (int)(((m_gb->apu.sample_queue[sample] / 7.0f) + 1.0f) * 4);
+
+        img[value*1024 + sample] = palette[0];
     }
 
     // 16x24 tiles of 8x8 pixels
     screen = SDL_CreateRGBSurfaceFrom(
         &img[0],
-        256, // width
+        1024, // width
         8, // height
         32, // bits per pixel
-        256*4, // bytes per row of pixels
+        1024*4, // bytes per row of pixels
         0xFF000000,
         0x00FF0000,
         0x0000FF00,
@@ -110,7 +110,7 @@ void Debug::draw(int x, int y) {
     SDL_FreeSurface(screen);
 
     // Render the gameboy texture onto the screen
-    dst = {x + 20, 400, 256, 8};
+    dst = {x + 20, 400, 256, 32};
     SDL_RenderCopy(m_renderer, texture, NULL, &dst);
     SDL_DestroyTexture(texture);
 }

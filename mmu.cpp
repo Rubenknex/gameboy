@@ -309,6 +309,8 @@ void MMU::write_byte(u16 address, u8 value) {
             } break;
         case 0x12: // Sound mode 1 envelope
             gb->apu.NR12 = value;
+            gb->apu.ch1_volume = (value & 0b11110000) >> 4;
+            gb->apu.ch1_envelope_counter = value & 0b111;
             break;
         case 0x13: // Sound mode 1 frequency low
             gb->apu.NR13 = value;
@@ -332,6 +334,8 @@ void MMU::write_byte(u16 address, u8 value) {
             } break;
         case 0x17: // Sound mode 2 envelope
             gb->apu.NR22 = value;
+            gb->apu.ch2_volume = (value & 0b11110000) >> 4;
+            gb->apu.ch2_envelope_counter = value & 0b111;
             break;
         case 0x18: // Sound mode 2 frequency low
             gb->apu.NR23 = value;

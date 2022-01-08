@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include "def.h"
+#include "fmt/format.h"
 
 #include "gameboy.h"
 
@@ -19,9 +20,13 @@ APU::APU(GameBoy* gb) : gb(gb) {
     sample_queue_index = 0;
     sample_queue.resize(SAMPLE_BUFFER_SIZE);
 
+    sequencer_clock = 0;
+    sequencer_step = 0;
+
     ch1_enabled = false;
     ch1_length_counter = 0;
     ch1_envelope_counter = 0;
+    ch1_volume = 0;
     ch1_sweep_counter = 0;
     ch1_timer = 0;
     ch1_sequence_index = 0;
@@ -29,6 +34,7 @@ APU::APU(GameBoy* gb) : gb(gb) {
     ch2_enabled = false;
     ch2_length_counter = 0;
     ch2_envelope_counter = 0;
+    ch2_volume = 0;
     ch2_timer = 0;
     ch2_sequence_index = 0;
 }
@@ -61,19 +67,47 @@ void APU::cycle() {
     }
     ch2_timer++;
 
+    // Update the sequencer clock, every 8192 cycles -> 512 Hz
+    sequencer_clock++;
     if (sequencer_clock == 8192) {
         sequencer_clock = 0;
+
+        // Update the current sequencer step 
+        sequencer_step++;
+        if (sequencer_step == 8)
+            sequencer_step = 0;
     }
 
-    if (sequencer_clock % 2 == 0) {
+    // Decrease length counters every other sequencer step -> 256 Hz
+    if (sequencer_step % 2 == 0) {
         ch1_length_counter--;
         ch2_length_counter--;
     }
-    if (sequencer_clock % 8 == 7) {
+
+    // Update envelope every 7th sequencer step -> 64 Hz
+    if (sequencer_step == 7) {
         ch1_envelope_counter--;
+        if (ch1_envelope_counter == 0) {
+            if (GET_BIT(NR12, 3) && ch1_volume < 15) {
+                ch1_volume++;
+            }
+            else if (GET_BIT(NR12, 3)==0 && ch1_volume > 0) {
+                ch1_volume--;
+            }
+        }
+
         ch2_envelope_counter--;
+        if (ch2_envelope_counter == 0) {
+            if (GET_BIT(NR22, 3) && ch2_volume < 15) {
+                ch2_volume++;
+            }
+            else if (GET_BIT(NR22, 3)==0 && ch2_volume > 0) {
+                ch2_volume--;
+            }
+        }
     }
-    if ((sequencer_clock - 2) % 4 == 0) {
+    // Update sweep every 4th sequencer step -> 128 Hz
+    if ((sequencer_step - 2) % 4 == 0) {
         ch1_sweep_counter--;
     }
 
@@ -92,30 +126,21 @@ void APU::cycle() {
     }
 
 
-    sequencer_clock++;
-
-    int length = NR21 & 0b11111;
 
     // Once every 87 CPU cycles, put an audio sample in the queue
     if (sample_timer == DOWNSAMPLE_RATE) {
         sample_timer = 0;
 
-        // Use maximum volume for now
-        int duty = (NR11 & 0b11000000) >> 6;
-        int ch1_output = sequences[duty][ch1_sequence_index] * 0xF;
+        // Get the current square wave duty cycle pattern
+        int pattern = (NR11 & 0b11000000) >> 6;
+        // Go from 0 to 1 (pattern) to (-1 to 1) * (volume, 0-7) * enabled
+        int ch1_output = ((sequences[pattern][ch1_sequence_index] * 2) - 1) * ch1_volume * ch1_enabled;
 
-        duty = (NR21 & 0b11000000) >> 6;
-        int ch2_output = sequences[duty][ch2_sequence_index] * 0xF;
+        pattern = (NR21 & 0b11000000) >> 6;
+        int ch2_output = ((sequences[pattern][ch2_sequence_index] * 2) - 1) * ch2_volume * ch2_enabled;
 
-        float ch1_analog = ((float)ch1_output / 15.0) * 2.0 - 1.0;
-        float ch2_analog = ((float)ch2_output / 15.0) * 2.0 - 1.0;
-
-        float mixed = 0.0f;
-
-        if (ch1_enabled)
-            mixed += ch1_analog;
-        if (ch2_enabled)
-            mixed += ch2_analog;
+        // Convert channel outputs to (-1.0, 1.0) range and sum
+        float mixed = (float)ch1_output / 7.0f + (float)ch2_output / 7.0f
 
         sample_queue[sample_queue_index] = mixed;
         sample_queue_index++;
