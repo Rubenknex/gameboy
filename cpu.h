@@ -45,10 +45,7 @@ public:
     u8 current_opcode();
 
     void debug_print();
-
-    void handle_interrupts();
-    void update_timers();
-
+    
     void execute_ALU_opcode(u8 opcode, bool immediate);
     void execute_CB_opcode(u8 opcode);
 
@@ -64,7 +61,6 @@ public:
     int elapsed_cycles;
 
     bool halted;
-    bool interrupt_master_enable;
 
     u8 A, F;
     u8 B, C;

@@ -21,6 +21,9 @@ public:
     u8 read_byte(u16 address);
     void write_byte(u16 address, u8 value);
 
+    void update_timers();
+    void handle_interrupts();
+
     void cycle();
 
 public:
@@ -47,6 +50,7 @@ public:
 
     u8 disable_bios; // FF50
 
+    bool interrupt_master_enable;
     u8 interrupt_flags; // FF0F, IF
     u8 interrupt_enable; // FFFF, IE
 

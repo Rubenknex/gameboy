@@ -112,7 +112,6 @@ CPU::CPU(GameBoy* gb) : gb(gb) {
     tracker = 0;
 
     halted = false;
-    interrupt_master_enable = false;
 
     A = F = 0;
     B = C = 0;
@@ -225,63 +224,6 @@ void CPU::debug_print() {
         gb->gpu.current_line, elapsed_cycles);
 
     std::cout << text << std::endl;
-}
-
-void CPU::handle_interrupts() {
-    u8 pending = gb->interrupt_enable & gb->interrupt_flags;
-
-    if (pending) {
-        halted = false;
-        //std::cout << "halted=false!" << std::endl;
-    }
-
-    if (!interrupt_master_enable) {
-        return;
-    }
-
-    u8 handlers[5] = {0x40, 0x48, 0x50, 0x58, 0x60};
-
-    for (int i = 0; i < 5; i++) {
-        // 1=VBLANK, 2=LCDC, 4=TIMER< 8=SERIAL, 16=JOYPAD
-        u8 flag = 1 << i;
-
-        // If this interrupt is enabled and flagged
-        if (pending & flag) {
-            // Reset the interrupt flag
-            gb->interrupt_flags &= ~flag;
-            interrupt_master_enable = false;
-
-            // Handle the interrupt
-            push_to_stack(PC);
-            PC = handlers[i];
-            cycles += 12;
-
-            break;
-        }
-    }
-}
-
-void CPU::update_timers() {
-    float timer = ((float)cycles / (float)CLOCK_FREQ) * (float)TIMER_FREQ;
-    gb->divide_register = (int)timer & 0xFF;
-
-    // If the timer is enabled
-    if (gb->timer_control & 0b100) {
-        int frequencies[4] = {4096, 262144, 65536, 16384};
-        int freq = frequencies[gb->timer_control & 0b11];
-
-        gb->raw_timer_counter += (float)elapsed_cycles / (float)CLOCK_FREQ * (float)freq;
-        //std::cout << "timer_counter=" << (int)gb->timer_counter << std::endl;
-        
-        // If we overflow the timer
-        if ((int)gb->raw_timer_counter > 0xFF) {
-            //std::cout << "timer_counter overflow!" << std::endl;
-            gb->interrupt_flags |= INTERRUPT_TIMER;
-            gb->raw_timer_counter = gb->timer_modulo;
-            gb->timer_counter = gb->timer_modulo;
-        } else
-            gb->timer_counter = (int)gb->raw_timer_counter & 0xFF;
-    }
 }
 
 // This function carries out all the arithmetic opcodes like ADD/ADC/SUB/etc
@@ -784,7 +726,7 @@ void CPU::execute_opcode() {
                         PC = pop_from_stack() - 1;
                         break;
                     case 1: // RETI
-                        interrupt_master_enable = true;
+                        gb->interrupt_master_enable = true;
                         PC = pop_from_stack() - 1;
                         break;
                     case 2: // JP (HL)
@@ -833,10 +775,10 @@ void CPU::execute_opcode() {
                         elapsed_cycles += 8;
                     break;
                 case 6: // DI
-                    interrupt_master_enable = false;
+                    gb->interrupt_master_enable = false;
                     break;
                 case 7: // EI
-                    interrupt_master_enable = true;
+                    gb->interrupt_master_enable = true;
                     break;
                 }
                 break;
@@ -881,6 +823,6 @@ void CPU::execute_opcode() {
         cycles += elapsed_cycles;
     }
 
-    update_timers();
-    handle_interrupts();
+    //update_timers();
+    //handle_interrupts();
 }
