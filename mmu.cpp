@@ -302,9 +302,11 @@ void MMU::write_byte(u16 address, u8 value) {
         case 0x10: // Sound mode 1 sweep
             gb->apu.NR10 = value;
             break;
-        case 0x11: // Sound mode 1 length/wave pattern duty
+        case 0x11: {// Sound mode 1 length/wave pattern duty
             gb->apu.NR11 = value;
-            break;
+            int length_cycles = (64 - (value & 0b11111)) * (16376);
+            gb->apu.ch1_length_counter = length_cycles;
+            } break;
         case 0x12: // Sound mode 1 envelope
             gb->apu.NR12 = value;
             break;
@@ -317,10 +319,17 @@ void MMU::write_byte(u16 address, u8 value) {
             gb->apu.NR14 = value;
             gb->apu.ch1_timer = 0;
             gb->apu.ch1_sequence_index = 0;
+            if (GET_BIT(value, 7)) {
+                // Restart sound
+                gb->apu.ch1_length_counter = (64 - (gb->apu.NR11 & 0b11111)) * (16376);
+                gb->apu.ch1_enabled = true;
+            }
             break;
-        case 0x16: // Sound mode 2 length/wave pattern duty
+        case 0x16: { // Sound mode 2 length/wave pattern duty
             gb->apu.NR21 = value;
-            break;
+            int length_cycles = (64 - (value & 0b11111)) * (16376);
+            gb->apu.ch2_length_counter = length_cycles;
+            } break;
         case 0x17: // Sound mode 2 envelope
             gb->apu.NR22 = value;
             break;
@@ -333,6 +342,12 @@ void MMU::write_byte(u16 address, u8 value) {
             gb->apu.NR24 = value;
             gb->apu.ch2_timer = 0;
             gb->apu.ch2_sequence_index = 0;
+            
+            if (GET_BIT(value, 7)) {
+                // Restart sound
+                gb->apu.ch2_length_counter = (64 - (gb->apu.NR21 & 0b11111)) * (16376);
+                gb->apu.ch2_enabled = true;
+            }
             break;
         case 0x1A: // Sound mode 3 on/off
 

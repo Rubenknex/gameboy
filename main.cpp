@@ -3,6 +3,7 @@
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 #include "SDL_FontCache.h"
+#include "fmt/format.h"
 
 #include "def.h"
 #include "debug.h"
@@ -30,6 +31,8 @@ int main(int argc, char* args[])
         return -1;
     }
 
+    SDL_Init(SDL_INIT_AUDIO);
+
     SDL_Window* window = SDL_CreateWindow(
         "GameBoy",
         SDL_WINDOWPOS_UNDEFINED,
@@ -48,6 +51,18 @@ int main(int argc, char* args[])
         std::cout << "Renderer creation error: " << SDL_GetError() << std::endl;
         return -1;
     }
+
+    SDL_AudioSpec want, have;
+    SDL_zero(want);
+    want.freq = 48000;
+    want.format = AUDIO_F32;
+    want.channels = 1;
+    want.samples = 256;
+    want.callback = NULL;
+    SDL_AudioDeviceID dev = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
+    if (dev == 0)
+        std::cout << "Could not open audio device: " << SDL_GetError() << std::endl;
+    SDL_PauseAudioDevice(dev, 0);
 
     //SDL_RenderSetLogicalSize(renderer, SCREEN_W, SCREEN_H);
 
@@ -99,12 +114,28 @@ int main(int argc, char* args[])
 
         redraw = false;
 
+        // Wait until the audio queue is finished playing
+        int queued = SDL_GetQueuedAudioSize(dev);
+        while (queued > 0) {
+            queued = SDL_GetQueuedAudioSize(dev);
+        }
+
+        bool sent_for_playback = false;
+
         // Cycle the gameboy until it wants us to redraw the screen
         while (!redraw && !stepping_mode) {
             gb.cycle();
 
-            if (gb.apu.sample_queue_index == 0) {
-                // play audio?
+            // The sample_queue_index can be 0 for multiple CPU cycles, so only
+            // send the audio for playback once
+            if (gb.apu.sample_queue_index == 0 && !sent_for_playback) {
+                SDL_QueueAudio(dev, &gb.apu.sample_queue[0], gb.apu.sample_queue.size()*4);
+                sent_for_playback = true;
+            }
+
+            if (gb.apu.sample_queue_index == 1) {
+                // A new queue has started to fill
+                sent_for_playback = false;
             }
 
             if (break_instr != 0 && gb.cpu.current_opcode() == break_instr)
@@ -149,10 +180,13 @@ int main(int argc, char* args[])
 
         // Regulate to 60 fps
         int elapsed_time = SDL_GetTicks() - current_time;
-        if (elapsed_time < MS_PER_FRAME)
+        if (elapsed_time < MS_PER_FRAME) {
+            debug.current_fps = 1000.0 / elapsed_time;
             SDL_Delay(MS_PER_FRAME - elapsed_time);
+        }
     }
 
+    SDL_CloseAudioDevice(dev);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_QuitSubSystem(SDL_INIT_EVERYTHING);

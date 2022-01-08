@@ -16,8 +16,10 @@ GameBoy::~GameBoy() {
 
 void GameBoy::cycle() {
     cpu.execute_opcode();
+
     gpu.cycle();
 
+    // APU should run at 4 MHz
     for (int i = 0; i < cpu.elapsed_cycles; i++) 
         apu.cycle();
 }

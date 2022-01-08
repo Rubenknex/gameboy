@@ -10,6 +10,7 @@
 Debug::Debug(GameBoy* gb, SDL_Renderer* renderer) : m_gb(gb) , m_renderer(renderer) {
     m_font = FC_CreateFont();
     FC_LoadFont(m_font, m_renderer, "monogram.ttf", 32, FC_MakeColor(255, 255, 255, 255), TTF_STYLE_NORMAL);
+    current_fps = 0;
 }
 
 Debug::~Debug() {
@@ -30,6 +31,8 @@ void Debug::draw(int x, int y) {
     FC_Draw(m_font, m_renderer, x + 20, 140, fmt::format("DIV={0:2X} TIMA={1:2X} TMA={2:2X} TAC={3:2X}", m_gb->mmu.divide_register, m_gb->mmu.timer_counter, m_gb->mmu.timer_modulo, m_gb->mmu.timer_control).c_str());
 
     FC_Draw(m_font, m_renderer, x + 20, 180, fmt::format("STAT={0:08b}", m_gb->gpu.lcd_status).c_str());
+
+    FC_Draw(m_font, m_renderer, x + 20, 200, fmt::format("FPS: {}", current_fps).c_str());
 
 
     // Audio
@@ -86,7 +89,7 @@ void Debug::draw(int x, int y) {
     // Convert the gameboy tiledata of a series of 64 values to an array
     // that we can draw on the screen
     for (int sample = 0; sample < 256; sample++) {
-        int value = m_gb->apu.sample_queue[sample];
+        int value = m_gb->apu.sample_queue[sample] / 32;
         
         img[value*256 + sample] = palette[0];
     }

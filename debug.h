@@ -18,6 +18,7 @@ public:
     GameBoy* m_gb;
     SDL_Renderer* m_renderer;
     FC_Font* m_font;
+    int current_fps;
 };
 
 #endif

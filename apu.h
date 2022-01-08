@@ -45,7 +45,7 @@ On the screen: 256 samples at 48 kHz
 */
 
 #define DOWNSAMPLE_RATE 87
-#define SAMPLE_BUFFER_SIZE 256
+#define SAMPLE_BUFFER_SIZE 1024
 
 class GameBoy;
 
@@ -61,11 +61,15 @@ public:
 
     int sample_timer;
     int sample_queue_index;
-    std::vector<u8> sample_queue;
+    std::vector<float> sample_queue;
 
     int sequencer_clock;
 
     // Channel 1: Tone & sweep
+    bool ch1_enabled;
+    int ch1_length_counter;
+    int ch1_envelope_counter;
+    int ch1_sweep_counter;
     int ch1_timer;
     int ch1_sequence_index;
     u8 NR10; // FF10, Ch1 sweep register
@@ -75,6 +79,9 @@ public:
     u8 NR14; // FF14, Ch1 frequency hi
 
     // Channel 2: Tone
+    bool ch2_enabled;
+    int ch2_length_counter;
+    int ch2_envelope_counter;
     int ch2_timer;
     int ch2_sequence_index;
     u8 NR21; // FF11, Ch1 sound length / wave pattern duty
