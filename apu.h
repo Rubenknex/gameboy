@@ -68,6 +68,7 @@ public:
     std::vector<float> sample_queue;
 
     int sequencer_clock;
+    bool sequencer_updated;
     int sequencer_step;
 
     // Channel 1: Tone & sweep

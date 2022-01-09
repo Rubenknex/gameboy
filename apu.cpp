@@ -21,6 +21,7 @@ APU::APU(GameBoy* gb) : gb(gb) {
     sample_queue.resize(APU_BUFFER_SIZE);
 
     sequencer_clock = 0;
+    sequencer_updated = false;
     sequencer_step = 0;
 
     ch1_enabled = false;
@@ -132,6 +133,7 @@ void APU::write_byte(u16 address, u8 value) {
             NR12 = value;
             ch1_volume = (value & 0b11110000) >> 4;
             ch1_envelope_counter = value & 0b111;
+            //std::cout << "Ch1 envelope counter = " << ch1_envelope_counter << std::endl;
             break;
         case 0x13: // Channel 1 frequency low
             NR13 = value;
@@ -147,7 +149,10 @@ void APU::write_byte(u16 address, u8 value) {
             if (GET_BIT(value, 7)) {
                 // Restart sound
                 ch1_length_counter = (64 - (NR11 & 0b11111)) * (16376);
+                ch1_envelope_counter = NR12 & 0b111;
+                ch1_volume = (NR12 & 0b11110000) >> 4;
                 ch1_enabled = true;
+                //std::cout << fmt::format("Play Ch1: length={} envelope={} volume={}", ch1_length_counter, ch1_envelope_counter, ch1_volume) << std::endl;
             }
             break;
         case 0x16: { // Channel 2 length/wave pattern duty
@@ -169,11 +174,13 @@ void APU::write_byte(u16 address, u8 value) {
             NR24 = value;
             ch2_timer = 0;
             ch2_sequence_index = 0;
-            
             if (GET_BIT(value, 7)) {
                 // Restart sound
                 ch2_length_counter = (64 - (NR21 & 0b11111)) * (16376);
+                ch2_envelope_counter = NR22 & 0b111;
+                ch2_volume = (NR22 & 0b11110000) >> 4;
                 ch2_enabled = true;
+                //std::cout << fmt::format("Play Ch1: length={} envelope={} volume={}", ch1_length_counter, ch1_envelope_counter, ch1_volume) << std::endl;
             }
             break;
         case 0x1A: // Channel 3 on/off
@@ -250,19 +257,24 @@ void APU::cycle() {
 
         // Update the current sequencer step 
         sequencer_step++;
+        sequencer_updated = true;
+        
         if (sequencer_step == 8)
             sequencer_step = 0;
+    } else{
+        sequencer_updated = false;
     }
 
     // Decrease length counters every other sequencer step -> 256 Hz
-    if (sequencer_step % 2 == 0) {
+    if (sequencer_updated && sequencer_step % 2 == 0) {
         ch1_length_counter--;
         ch2_length_counter--;
     }
 
     // Update envelope every 7th sequencer step -> 64 Hz
-    if (sequencer_step == 7) {
+    if (sequencer_updated && sequencer_step == 7) {
         ch1_envelope_counter--;
+        //std::cout << "ch1_envelope_counter=" << ch1_envelope_counter << std::endl;
         if (ch1_envelope_counter == 0) {
             // If volume should be increased and we are not at max yet
             if (GET_BIT(NR12, 3) && ch1_volume < 15) {
@@ -271,10 +283,12 @@ void APU::cycle() {
             // If volume should be decreased and we are not at zero yet
             else if (GET_BIT(NR12, 3)==0 && ch1_volume > 0) {
                 ch1_volume--;
+                //std::cout << "Decreased ch1 volume to " << ch1_volume << std::endl;
             }
 
             // Reset the envelope counter
-            ch1_envelope_counter = NR11 & 0b111;
+            ch1_envelope_counter = NR12 & 0b111;
+            //std::cout << "Reset ch1_envelope_counter to " << (NR12 & 0b111) << std::endl;
         }
 
         ch2_envelope_counter--;
@@ -286,11 +300,11 @@ void APU::cycle() {
                 ch2_volume--;
             }
 
-            ch2_envelope_counter = NR21 & 0b111;
+            ch2_envelope_counter = NR22 & 0b111;
         }
     }
     // Update sweep every 4th sequencer step -> 128 Hz
-    if ((sequencer_step - 2) % 4 == 0) {
+    if (sequencer_updated && (sequencer_step - 2) % 4 == 0) {
         ch1_sweep_counter--;
     }
 
@@ -316,14 +330,20 @@ void APU::cycle() {
 
         // Get the current square wave duty cycle pattern
         int pattern = (NR11 & 0b11000000) >> 6;
-        // Go from 0 to 1 (pattern) to (-1 to 1) * (volume, 0-7) * enabled
+        // Go from (0, 1) pattern to (-15, 15) output value
         int ch1_output = ((sequences[pattern][ch1_sequence_index] * 2) - 1) * ch1_volume * ch1_enabled;
 
         pattern = (NR21 & 0b11000000) >> 6;
         int ch2_output = ((sequences[pattern][ch2_sequence_index] * 2) - 1) * ch2_volume * ch2_enabled;
 
         // Convert channel outputs to (-1.0, 1.0) range and sum
-        float mixed = (float)ch1_output / 7.0f + (float)ch2_output / 7.0f;
+        float mixed = (float)ch1_output / 15.0f + (float)ch2_output / 15.0f;
+
+        // Clip because summing can go above 1.0
+        if (mixed < -1.0f)
+            mixed = -1.0f;
+        if (mixed > 1.0f)
+            mixed = 1.0f;
 
         sample_queue[sample_queue_index] = mixed;
         sample_queue_index++;
