@@ -27,8 +27,8 @@ const std::string opcode_names[0x100] = {
 
     "RET NZ", "POP BC", "JP NZ,a16", "JP a16", "CALL NZ,a16", "PUSH BC", "ADD A,d8", "RST 00H", "RET Z", "RET", "JP Z,a16", "PREFIX CB", "CALL Z,a16", "CALL a16", "ADC A,d8", "RST 08H",
     "RET NC", "POP DE", "JP NC,a16", "invalid", "CALL NC,a16", "PUSH DE", "SUB d8", "RST 10H", "RET C", "RETI", "JP C,a16", "invalid", "CALL C,a16", "invalid", "SBC A,d8", "RST 18H",
-    "LDH (a8),A", "POP HL", "LD (C),A", "invalid", "invalid", "PUSH HL", "AND d8", "RST 20H", "ADD SP,r8", "JP (HL)", "LD (a16),A", "invalid", "invalid", "invalid", "XOR d8", "RST 28H",
-    "LDH A,(a8)", "POP AF", "LD A,(C)", "DI", "invalid", "PUSH AF", "OR d8", "RST 30H", "LD HL,SP+r8", "LD SP,HL", "LD A,(a16)", "EI", "invalid", "invalid", "CP d8", "RST 38H",
+    "LDH (a8),A", "POP HL", "LD FF+C,A", "invalid", "invalid", "PUSH HL", "AND d8", "RST 20H", "ADD SP,r8", "JP (HL)", "LD (a16),A", "invalid", "invalid", "invalid", "XOR d8", "RST 28H",
+    "LDH A,(a8)", "POP AF", "LD A,FF+C", "DI", "invalid", "PUSH AF", "OR d8", "RST 30H", "LD HL,SP+r8", "LD SP,HL", "LD A,(a16)", "EI", "invalid", "invalid", "CP d8", "RST 38H",
 };
 
 const int opcode_bytes[0x100] = {
