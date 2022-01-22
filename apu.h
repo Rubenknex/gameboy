@@ -58,21 +58,27 @@ public:
     u8 read_byte(u16 address);
     void write_byte(u16 address, u8 value);
 
+    void update_frequencies();
+
     void cycle();
 
 public:
     GameBoy* gb;
 
+    float volume;
+
     int sample_timer;
     int sample_queue_index;
     std::vector<float> sample_queue;
 
+    int global_timer;
     int sequencer_clock;
     bool sequencer_updated;
     int sequencer_step;
 
     // Channel 1: Tone & sweep
     bool ch1_enabled;
+    int ch1_frequency;
     int ch1_length_counter;
     int ch1_envelope_counter;
     int ch1_volume;
@@ -87,6 +93,7 @@ public:
 
     // Channel 2: Tone
     bool ch2_enabled;
+    int ch2_frequency;
     int ch2_length_counter;
     int ch2_envelope_counter;
     int ch2_volume;
@@ -98,6 +105,12 @@ public:
     u8 NR24; // FF14, Ch1 frequency hi
 
     // Channel 3: Wave output
+    bool ch3_enabled;
+    int ch3_frequency;
+    int ch3_length_counter;
+    int ch3_volume;
+    int ch3_timer;
+    int ch3_sequence_index;
     u8 NR30; // FF1A, sound on/off
     u8 NR31; // FF1B, sound length
     u8 NR32; // FF1C, select output level
@@ -105,6 +118,13 @@ public:
     u8 NR34; // FF1E, frequency hi
 
     // Channel 4: Noise
+    bool ch4_enabled;
+    int ch4_length_counter;
+    int ch4_envelope_counter;
+    int ch4_volume;
+    int ch4_timer;
+    int ch4_lfsr;
+    int ch4_period;
     u8 NR41; // FF20, sound length
     u8 NR42; // FF21, volume envelope
     u8 NR43; // FF22, polynomial counter
